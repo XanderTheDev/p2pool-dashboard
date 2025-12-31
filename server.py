@@ -49,6 +49,81 @@ def get_last_price():
         pass
     return 0.0
 
+# --------------------------------------------------
+# Helper: multi-API XMR price
+# --------------------------------------------------
+def get_xmr_price():
+    #
+    #Return current XMR price in EUR using multiple APIs with fallback:
+    #  1. CoinGecko XMR/EUR
+    #  2. Kraken XMR/EUR
+    #  3. Bitfinex XMR/USD → EUR via Frankfurter API
+    #  4. price2sheet XMR/EUR
+    #  5. Last logged price
+    #Prints which source was used.
+    #"""
+    # 1. CoinGecko XMR/EUR
+    try:
+        with urllib.request.urlopen(
+            "https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=eur",
+            timeout=5
+        ) as r:
+            data = json.load(r)
+        price = float(data["monero"]["eur"])
+        if price > 0:
+            print("Price has come from: CoinGecko")
+            return price
+    except Exception:
+        pass
+
+    # 2. Kraken XMR/EUR
+    try:
+        with urllib.request.urlopen("https://api.kraken.com/0/public/Ticker?pair=XMREUR", timeout=5) as r:
+            data = json.load(r)
+        price = float(data["result"]["XXMRZEUR"]["c"][0])
+        if price > 0:
+            print("Price has come from: Kraken")
+            return price
+    except Exception:
+        pass
+
+    # 3. Bitfinex XMR/USD → EUR via Frankfurter
+    try:
+        # Bitfinex XMR/USD
+        with urllib.request.urlopen("https://api-pub.bitfinex.com/v2/ticker/tXMRUSD", timeout=5) as r:
+            data = json.load(r)
+            bitfinex_usd = float(data[6])
+
+            # USD → EUR using Frankfurter API
+            try:
+                with urllib.request.urlopen("https://api.frankfurter.app/latest?from=USD&to=EUR", timeout=5) as r2:
+                    fx_data = json.load(r2)
+                    usd_to_eur = float(fx_data["rates"]["EUR"])
+                    price = bitfinex_usd * usd_to_eur
+                    if price > 0:
+                        print("Price has come from: Bitfinex (converted USD→EUR via Frankfurter)")
+                        return price
+            except Exception:
+                    pass  # USD→EUR conversion failed, skip to next fallback
+    except Exception:
+        pass  # Bitfinex call failed, skip to next fallback
+
+
+    # 4. price2sheet
+    try:
+        with urllib.request.urlopen("https://api.price2sheet.com/json/xmr/eur", timeout=5) as r:
+            data = json.load(r)
+        price = float(data["price"])
+        if price > 0:
+            print("Price has come from: price2sheet")
+            return price
+    except Exception:
+        pass
+
+    # 5. Last logged price
+    last_price = get_last_price()
+    print("Price has come from last recorded value")
+    return last_price
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -152,15 +227,8 @@ def log_loop():
             )
             netHash = net["result"]["difficulty"] / 120
 
-            try:
-                price = float(json.loads(
-                    urllib.request.urlopen(
-                        "https://api.price2sheet.com/json/xmr/eur",
-                        timeout=5
-                    ).read()
-                )["price"])
-            except Exception:
-                price = get_last_price()
+            # Multi-API price fetch
+            price = get_xmr_price()
 
             append_log(myHash, poolHash, netHash, price)
 
