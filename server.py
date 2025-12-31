@@ -7,6 +7,7 @@ import urllib.request
 import time
 import argparse
 import threading
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=8080)
@@ -30,6 +31,25 @@ if not os.path.exists(LOG_FILE):
             "price": []
         }, f)
 
+# --------------------------------------------------
+# Shutdown coordination
+# --------------------------------------------------
+shutdown_event = threading.Event()
+
+# --------------------------------------------------
+# Helper: get last recorded XMR price
+# --------------------------------------------------
+def get_last_price():
+    try:
+        with open(LOG_FILE, "r") as f:
+            data = json.load(f)
+            if data["price"]:
+                return float(data["price"][-1])
+    except Exception:
+        pass
+    return 0.0
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DATA_DIR, **kwargs)
@@ -45,15 +65,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def proxy(self, url):
-        try:
-            with urllib.request.urlopen(url, timeout=5) as r:
-                data = r.read()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(data)
-        except Exception as e:
-            self.send_error(502, str(e))
+        with urllib.request.urlopen(url, timeout=5) as r:
+            data = r.read()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(data)
 
     def proxy_monerod(self):
         payload = json.dumps({
@@ -61,19 +78,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             "id": "0",
             "method": "get_info"
         }).encode()
-        try:
-            req = urllib.request.Request(
-                "http://127.0.0.1:18081/json_rpc",
-                data=payload,
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as r:
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(r.read())
-        except Exception as e:
-            self.send_error(502, str(e))
+        req = urllib.request.Request(
+            "http://127.0.0.1:18081/json_rpc",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(r.read())
 
     def serve_log(self):
         with open(LOG_FILE) as f:
@@ -83,10 +97,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data.encode())
 
+
 def append_log(myHash, poolHash, netHash, price):
     ts = int(time.time())
     with open(LOG_FILE, "r+") as f:
         data = json.load(f)
+
         data["timestamps"].append(ts)
         data["myHash"].append(myHash)
         data["poolHash"].append(poolHash)
@@ -102,45 +118,77 @@ def append_log(myHash, poolHash, netHash, price):
         json.dump(data, f)
         f.truncate()
 
+
 def log_loop():
-    while True:
+    while not shutdown_event.is_set():
         try:
             xmrig = json.loads(
-                urllib.request.urlopen("http://127.0.0.1:42000/2/summary").read()
+                urllib.request.urlopen(
+                    "http://127.0.0.1:42000/2/summary",
+                    timeout=5
+                ).read()
             )
             myHash = xmrig["hashrate"]["total"][0]
 
             pool = json.loads(
-                urllib.request.urlopen(f"http://127.0.0.1:{PORT}/pool/stats").read()
+                urllib.request.urlopen(
+                    f"http://127.0.0.1:{PORT}/pool/stats",
+                    timeout=5
+                ).read()
             )
             poolHash = pool["pool_statistics"]["hashRate"]
 
             req = urllib.request.Request(
                 "http://127.0.0.1:18081/json_rpc",
-                data=json.dumps({"jsonrpc":"2.0","id":"0","method":"get_info"}).encode(),
-                headers={"Content-Type":"application/json"}
+                data=json.dumps({
+                    "jsonrpc": "2.0",
+                    "id": "0",
+                    "method": "get_info"
+                }).encode(),
+                headers={"Content-Type": "application/json"}
             )
-            net = json.loads(urllib.request.urlopen(req).read())
+            net = json.loads(
+                urllib.request.urlopen(req, timeout=5).read()
+            )
             netHash = net["result"]["difficulty"] / 120
 
             try:
                 price = float(json.loads(
                     urllib.request.urlopen(
-                        "https://api.price2sheet.com/json/xmr/eur"
+                        "https://api.price2sheet.com/json/xmr/eur",
+                        timeout=5
                     ).read()
                 )["price"])
-            except:
-                price = 0
+            except Exception:
+                price = get_last_price()
 
             append_log(myHash, poolHash, netHash, price)
 
         except Exception as e:
-            print("Log error:", e)
+            if not shutdown_event.is_set():
+                print("Log error:", e)
 
-        time.sleep(10)
+        shutdown_event.wait(10)
 
+
+# --------------------------------------------------
+# Start logger thread
+# --------------------------------------------------
 threading.Thread(target=log_loop, daemon=True).start()
 
-with socketserver.ThreadingTCPServer(("", PORT), Handler) as httpd:
-    print(f"Serving HTTP on 0.0.0.0:{PORT}")
-    httpd.serve_forever()
+# --------------------------------------------------
+# Start HTTP server
+# --------------------------------------------------
+socketserver.ThreadingTCPServer.allow_reuse_address = True
+
+print(f"Serving HTTP on 0.0.0.0:{PORT}")
+
+try:
+    with socketserver.ThreadingTCPServer(("", PORT), Handler) as httpd:
+        httpd.serve_forever()
+except KeyboardInterrupt:
+    print("\nCTRL+C received, shutting down cleanly...")
+finally:
+    shutdown_event.set()
+    print("Server stopped cleanly.")
+    sys.exit(0)
