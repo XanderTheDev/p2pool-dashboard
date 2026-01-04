@@ -1,6 +1,6 @@
 # P2Pool Dashboard
 
-A lightweight, real-time dashboard for monitoring your P2Pool mining stats, XMRig hashrate, network stats, and XMR price — all in one place.  
+A lightweight, real-time dashboard for monitoring your P2Pool mining stats, XMRig hashrate, network stats, and XMR price, all in one place.  
 Mostly vibe-coded because I just wanted something that worked. No hand-holding here, but it’s pretty straightforward.
 
 ---
