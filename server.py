@@ -191,6 +191,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 # LOGGING FUNCTIONS
 # ==============================
 
+def load_log_disk():
+    """Load existing stats_log.json into memory at startup"""
+    if not os.path.exists(LOG_FILE):
+        print("No existing stats_log.json found, starting fresh")
+        return
+    try:
+        with open(LOG_FILE) as f:
+            data = json.load(f)
+        with log_lock:
+            for k in log:
+                log[k] = deque(data.get(k, []))
+        print(f"Loaded {len(log['timestamps'])} old log entries")
+    except Exception as e:
+        print(f"Error reading existing stats_log.json, starting fresh: {e}")
+
 def append_log(myHash, poolHash, netHash, price):
     """
     Append a new data point to the in-memory rolling log
@@ -277,6 +292,8 @@ shutdown_event = threading.Event()
 # ==============================
 # START LOGGER THREAD
 # ==============================
+# Load old logs before appending new info to prevent the log being overwritten
+load_log_disk()
 threading.Thread(target=log_loop, daemon=True).start()
 
 # ==============================
