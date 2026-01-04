@@ -7,7 +7,8 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="1917" height="650" alt="Dashboard screenshot" src="https://github.com/user-attachments/assets/c17abf8c-9bf3-46e9-9f69-b33fd388c3fd" />
+<img width="1920" height="631" alt="Dashboard screenshot" src="https://github.com/user-attachments/assets/e4415460-9cfd-4dd2-8a30-e6bb3f602809" />
+
 
 ---
 
@@ -104,16 +105,22 @@ You should see your hashrate, pool stats, XMR price, and estimated earnings upda
 - Tooltip icons (ⓘ) give extra info like moving averages and payout intervals.
 - The dashboard uses a dark theme and is mobile-friendly.
 
-Made by XanderTheDev. No support guaranteed, but hey, it works!
+---
 
 ## Credits
 
+Made by XanderTheDev. No support guaranteed, but hey, it works!
+Here is some stuff I used for the HTML
 - [Chart.js](https://www.chartjs.org/) for rendering charts (MIT License)
 - [Luxon](https://moment.github.io/luxon/) for date/time handling (MIT License)
 - [chartjs-adapter-luxon](https://github.com/chartjs/chartjs-adapter-luxon) (MIT License)
 
+---
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
 
 ⚠️ Disclaimer: This project is not affiliated with or endorsed by the Monero Project. The Monero logo used as the favicon is a trademark of the Monero Project and is used for informational purposes only.
