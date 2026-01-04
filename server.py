@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 import http.server
 import socketserver
@@ -8,7 +9,9 @@ import time
 import argparse
 import threading
 import sys
+from collections import deque
 
+# -------------------- CLI --------------------
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=8080)
 parser.add_argument("--data-dir", type=str, default="./p2pool-data")
@@ -17,28 +20,23 @@ args = parser.parse_args()
 PORT = args.port
 DATA_DIR = args.data_dir
 LOG_FILE = os.path.join(DATA_DIR, "stats_log.json")
-MAX_LOG_AGE = 7 * 24 * 3600
+STATS_MOD_FILE = os.path.join(DATA_DIR, "stats_mod")
+MAX_LOG_AGE = 24 * 3600  # keep 24h of data
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-if not os.path.exists(LOG_FILE):
-    with open(LOG_FILE, "w") as f:
-        json.dump({
-            "timestamps": [],
-            "myHash": [],
-            "poolHash": [],
-            "netHash": [],
-            "price": []
-        }, f)
+# -------------------- In-memory rolling logs --------------------
+# Deques for efficient appends/pops from left
+log = {
+    "timestamps": deque(),
+    "myHash": deque(),
+    "poolHash": deque(),
+    "netHash": deque(),
+    "price": deque()
+}
+log_lock = threading.Lock()  # thread-safe access
 
-# --------------------------------------------------
-# Shutdown coordination
-# --------------------------------------------------
-shutdown_event = threading.Event()
-
-# --------------------------------------------------
-# Helper: get last recorded XMR price
-# --------------------------------------------------
+# -------------------- Helper functions --------------------
 def get_last_price():
     try:
         with open(LOG_FILE, "r") as f:
@@ -49,82 +47,48 @@ def get_last_price():
         pass
     return 0.0
 
-# --------------------------------------------------
-# Helper: multi-API XMR price
-# --------------------------------------------------
 def get_xmr_price():
-    #
-    #Return current XMR price in EUR using multiple APIs with fallback:
-    #  1. CoinGecko XMR/EUR
-    #  2. Kraken XMR/EUR
-    #  3. Bitfinex XMR/USD → EUR via Frankfurter API
-    #  4. price2sheet XMR/EUR
-    #  5. Last logged price
-    #Prints which source was used.
-    #"""
-    # 1. CoinGecko XMR/EUR
-    try:
-        with urllib.request.urlopen(
-            "https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=eur",
-            timeout=5
-        ) as r:
-            data = json.load(r)
-        price = float(data["monero"]["eur"])
-        if price > 0:
-            print("Price has come from: CoinGecko")
-            return price
-    except Exception:
-        pass
-
-    # 2. Kraken XMR/EUR
-    try:
-        with urllib.request.urlopen("https://api.kraken.com/0/public/Ticker?pair=XMREUR", timeout=5) as r:
-            data = json.load(r)
-        price = float(data["result"]["XXMRZEUR"]["c"][0])
-        if price > 0:
-            print("Price has come from: Kraken")
-            return price
-    except Exception:
-        pass
-
-    # 3. Bitfinex XMR/USD → EUR via Frankfurter
-    try:
-        # Bitfinex XMR/USD
-        with urllib.request.urlopen("https://api-pub.bitfinex.com/v2/ticker/tXMRUSD", timeout=5) as r:
-            data = json.load(r)
-            bitfinex_usd = float(data[6])
-
-            # USD → EUR using Frankfurter API
-            try:
-                with urllib.request.urlopen("https://api.frankfurter.app/latest?from=USD&to=EUR", timeout=5) as r2:
-                    fx_data = json.load(r2)
-                    usd_to_eur = float(fx_data["rates"]["EUR"])
-                    price = bitfinex_usd * usd_to_eur
-                    if price > 0:
-                        print("Price has come from: Bitfinex (converted USD→EUR via Frankfurter)")
-                        return price
-            except Exception:
-                    pass  # USD→EUR conversion failed, skip to next fallback
-    except Exception:
-        pass  # Bitfinex call failed, skip to next fallback
-
-
-    # 4. price2sheet
-    try:
-        with urllib.request.urlopen("https://api.price2sheet.com/json/xmr/eur", timeout=5) as r:
-            data = json.load(r)
-        price = float(data["price"])
-        if price > 0:
-            print("Price has come from: price2sheet")
-            return price
-    except Exception:
-        pass
-
-    # 5. Last logged price
+    """Fetch XMR price from multiple sources with fallback."""
+    sources = [
+        ("https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=eur", lambda d: float(d["monero"]["eur"]), "CoinGecko"),
+        ("https://api.kraken.com/0/public/Ticker?pair=XMREUR", lambda d: float(d["result"]["XXMRZEUR"]["c"][0]), "Kraken"),
+        ("https://api-pub.bitfinex.com/v2/ticker/tXMRUSD", None, "Bitfinex+FX"),
+        ("https://api.price2sheet.com/json/xmr/eur", lambda d: float(d["price"]), "price2sheet")
+    ]
+    for url, parser_func, name in sources:
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                data = json.load(r)
+            if name == "Bitfinex+FX":
+                usd_to_eur = 1.0
+                try:
+                    with urllib.request.urlopen("https://api.frankfurter.app/latest?from=USD&to=EUR", timeout=5) as r2:
+                        fx_data = json.load(r2)
+                        usd_to_eur = float(fx_data["rates"]["EUR"])
+                except Exception:
+                    pass
+                price = float(data[6]) * usd_to_eur
+            else:
+                price = parser_func(data)
+            if price > 0:
+                print(f"Price has come from: {name}")
+                return price
+        except Exception:
+            continue
     last_price = get_last_price()
     print("Price has come from last recorded value")
     return last_price
 
+def get_min_payment_threshold():
+    """Read min payment threshold from stats_mod"""
+    try:
+        with open(STATS_MOD_FILE) as f:
+            data = json.load(f)
+        return data["config"]["minPaymentThreshold"] / 1e12
+    except Exception:
+        return 0.01  # fallback
+
+# -------------------- HTTP Handler --------------------
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DATA_DIR, **kwargs)
@@ -136,6 +100,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.proxy("http://127.0.0.1:42000/2/summary")
         elif self.path == "/stats_log.json":
             self.serve_log()
+        elif self.path == "/min_payment_threshold":
+            self.serve_threshold()
         else:
             super().do_GET()
 
@@ -165,72 +131,76 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(r.read())
 
     def serve_log(self):
-        with open(LOG_FILE) as f:
-            data = f.read()
+        """Serve current in-memory rolling log as JSON"""
+        with log_lock:
+            data = {k: list(v) for k,v in log.items()}
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        self.wfile.write(data.encode())
+        self.wfile.write(json.dumps(data).encode())
 
+    def serve_threshold(self):
+        threshold = get_min_payment_threshold()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"minPaymentThreshold": threshold}).encode())
 
+# -------------------- Logging --------------------
 def append_log(myHash, poolHash, netHash, price):
     ts = int(time.time())
-    with open(LOG_FILE, "r+") as f:
-        data = json.load(f)
+    cutoff = ts - MAX_LOG_AGE
+    with log_lock:
+        log["timestamps"].append(ts)
+        log["myHash"].append(myHash)
+        log["poolHash"].append(poolHash)
+        log["netHash"].append(netHash)
+        log["price"].append(price)
 
-        data["timestamps"].append(ts)
-        data["myHash"].append(myHash)
-        data["poolHash"].append(poolHash)
-        data["netHash"].append(netHash)
-        data["price"].append(price)
+        # Remove old entries beyond 24h
+        while log["timestamps"] and log["timestamps"][0] < cutoff:
+            for k in log:
+                log[k].popleft()
 
-        cutoff = ts - MAX_LOG_AGE
-        while data["timestamps"] and data["timestamps"][0] < cutoff:
-            for k in data:
-                data[k].pop(0)
-
-        f.seek(0)
+def save_log_disk():
+    """Atomic write to disk"""
+    tmp_file = LOG_FILE + ".tmp"
+    with log_lock:
+        data = {k: list(v) for k,v in log.items()}
+    with open(tmp_file, "w") as f:
         json.dump(data, f)
-        f.truncate()
+    os.replace(tmp_file, LOG_FILE)
 
-
+# -------------------- Logger loop --------------------
 def log_loop():
+    last_save = 0
     while not shutdown_event.is_set():
         try:
             xmrig = json.loads(
-                urllib.request.urlopen(
-                    "http://127.0.0.1:42000/2/summary",
-                    timeout=5
-                ).read()
+                urllib.request.urlopen("http://127.0.0.1:42000/2/summary", timeout=5).read()
             )
             myHash = xmrig["hashrate"]["total"][0]
 
             pool = json.loads(
-                urllib.request.urlopen(
-                    f"http://127.0.0.1:{PORT}/pool/stats",
-                    timeout=5
-                ).read()
+                urllib.request.urlopen(f"http://127.0.0.1:{PORT}/pool/stats", timeout=5).read()
             )
             poolHash = pool["pool_statistics"]["hashRate"]
 
             req = urllib.request.Request(
                 "http://127.0.0.1:18081/json_rpc",
-                data=json.dumps({
-                    "jsonrpc": "2.0",
-                    "id": "0",
-                    "method": "get_info"
-                }).encode(),
+                data=json.dumps({"jsonrpc": "2.0", "id": "0", "method": "get_info"}).encode(),
                 headers={"Content-Type": "application/json"}
             )
-            net = json.loads(
-                urllib.request.urlopen(req, timeout=5).read()
-            )
+            net = json.loads(urllib.request.urlopen(req, timeout=5).read())
             netHash = net["result"]["difficulty"] / 120
 
-            # Multi-API price fetch
             price = get_xmr_price()
-
             append_log(myHash, poolHash, netHash, price)
+
+            # Save to disk every 10s
+            if time.time() - last_save > 10:
+                save_log_disk()
+                last_save = time.time()
 
         except Exception as e:
             if not shutdown_event.is_set():
@@ -238,17 +208,14 @@ def log_loop():
 
         shutdown_event.wait(10)
 
+# -------------------- Shutdown --------------------
+shutdown_event = threading.Event()
 
-# --------------------------------------------------
-# Start logger thread
-# --------------------------------------------------
+# -------------------- Start logger thread --------------------
 threading.Thread(target=log_loop, daemon=True).start()
 
-# --------------------------------------------------
-# Start HTTP server
-# --------------------------------------------------
+# -------------------- Start HTTP server --------------------
 socketserver.ThreadingTCPServer.allow_reuse_address = True
-
 print(f"Serving HTTP on 0.0.0.0:{PORT}")
 
 try:
@@ -258,5 +225,6 @@ except KeyboardInterrupt:
     print("\nCTRL+C received, shutting down cleanly...")
 finally:
     shutdown_event.set()
+    save_log_disk()
     print("Server stopped cleanly.")
     sys.exit(0)
