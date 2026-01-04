@@ -43,7 +43,7 @@ cd p2pool-dashboard
 
 ### 2. Set up P2Pool
 
-You need a P2Pool instance running. P2Pool has its own data directory (where it stores pool stats). For example:
+You need a P2Pool instance running. P2Pool has its own data directory (where it stores pool stats), but it isn't setup in the most handy location and can vary per linux distro.
 
 #### Run P2Pool with a specified data directory
 When running p2pool, you need to add the ```--data-dir``` flag so there is a place p2pool-dashboard can retrieve statistics from.
