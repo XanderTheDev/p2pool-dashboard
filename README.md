@@ -105,3 +105,15 @@ You should see your hashrate, pool stats, XMR price, and estimated earnings upda
 - The dashboard uses a dark theme and is mobile-friendly.
 
 Made by XanderTheDev. No support guaranteed, but hey, it works!
+
+## Credits
+
+- [Chart.js](https://www.chartjs.org/) for rendering charts (MIT License)
+- [Luxon](https://moment.github.io/luxon/) for date/time handling (MIT License)
+- [chartjs-adapter-luxon](https://github.com/chartjs/chartjs-adapter-luxon) (MIT License)
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+⚠️ Disclaimer: This project is not affiliated with or endorsed by the Monero Project. The Monero logo used as the favicon is a trademark of the Monero Project and is used for informational purposes only.
