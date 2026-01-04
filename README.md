@@ -58,6 +58,9 @@ Then link it to the dashboard p2pool-data directory:
 ```bash
 cd p2pool-dashboard     # if not already
 ln -s /home/user/p2pool-data ./p2pool-data  # Or a different data directory if you setup a different one.
+#            ^
+#            |
+#  Again user is your username
 ```
 
 Now the dashboard will read pool stats from your P2Pool node.
