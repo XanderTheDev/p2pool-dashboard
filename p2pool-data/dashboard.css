@@ -17,6 +17,28 @@ h1 {
     color: #4CAF50; 
 }
 
+/* Earnings legend & refresh text */
+#earnLegend, #lastRefreshed {
+    color: #aaa;
+    font-size: 0.8rem;
+    margin-top: 0.1rem;
+}
+
+/* Tooltip icon styling - fixed size independent of parent text */
+.tooltip-icon {
+    display: inline-block;
+    margin-left: 2px;
+    color: #4CAF50;
+    font-weight: normal;       /* normal weight, not bold */
+    font-size: 0.7rem;         /* fixed size relative to page, not parent */
+    vertical-align: super;     /* superscript */
+    cursor: default;           /* normal arrow cursor */
+}
+
+.tooltip-icon:hover {
+    color: #81C784;            /* slightly lighter green on hover */
+}
+
 main.grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
