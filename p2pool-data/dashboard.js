@@ -25,6 +25,17 @@ function scaleHashrate(v){
     return Math.round(v) + " H/s";
 }
 
+// Format date in DD/MM/YYYY HH:MM:SS
+function formatDate24(date) {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0'); // month is 0-indexed
+    const y = date.getFullYear();
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}:${s}`;
+}
+
 /**
  * Fetch JSON data from a URL, throwing an error if request fails
  * @param {string} url - endpoint to fetch
@@ -95,9 +106,22 @@ function updateCharts(){
             type: "line",
             data: { labels: d.labels, datasets: [{ label: "Your Hashrate", data: d.myHash }] },
             options: {
-                scales: { x: { type: "time" }, y: { ticks: { callback: scaleHashrate } } },
+                scales: {
+                        x: {
+                                type: "time",
+                                time: {
+                                        tooltipFormat: "dd/MM/yyyy HH:mm:ss", // tooltip format on hover
+                                        displayFormats: {
+                                        hour: "dd/MM/yyyy HH:mm",   // x-axis label when zoomed out
+                                        minute: "dd/MM/yyyy HH:mm"
+                                        }
+                                }
+                        },
+                        y: { ticks: { callback: scaleHashrate } }
+                },
                 elements: { point: { radius: 0 }, line: { tension: 0.25 } }
             }
+
         });
     } else {
         hashrateChart.data.labels = d.labels;
@@ -108,15 +132,30 @@ function updateCharts(){
     // --- PRICE CHART ---
     if(!priceChart){
         priceChart = new Chart(document.getElementById("priceChart"), {
-            type: "line",
-            data: { labels: d.labels, datasets: [{ label: "XMR Price (EUR)", data: d.price }] },
-            options: { scales: { x: { type: "time" } }, elements: { point: { radius: 0 }, line: { tension: 0.25 } } }
+                type: "line",
+                data: { labels: d.labels, datasets: [{ label: "XMR Price (EUR)", data: d.price }] },
+                options: {
+                        scales: {
+                                x: {
+                                        type: "time",
+                                        time: {
+                                                tooltipFormat: "dd/MM/yyyy HH:mm:ss", // tooltip on hover
+                                                displayFormats: {
+                                                        hour: "dd/MM/yyyy HH:mm",  // x-axis label when zoomed out
+                                                        minute: "dd/MM/yyyy HH:mm"
+                                                }
+                                        }
+                                }
+                        },
+                        elements: { point: { radius: 0 }, line: { tension: 0.25 } }
+                }
         });
     } else {
         priceChart.data.labels = d.labels;
         priceChart.data.datasets[0].data = d.price;
         priceChart.update();
     }
+
 }
 
 // ==============================
@@ -215,7 +254,7 @@ Avg network hashrate: ${scaleHashrate(avgNetHash)}`;
 
         // Last refreshed timestamp
         const date = new Date();
-        document.getElementById("lastRefreshed").textContent = `Last refreshed: ${date.toLocaleString()}`;
+        document.getElementById("lastRefreshed").textContent = `Last refreshed: ${formatDate24(date)}`;
 
         // --- PAYOUT INTERVAL CALCULATION ---
         let xmrPerBlock = myNetShareAvg * blockReward;
