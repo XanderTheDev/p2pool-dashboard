@@ -1,90 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>P2Pool Dashboard</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>P2Pool Dashboard</title>
+  
+  <!-- Favicon for browser tab -->
+  <link rel="icon" type="image/png" href="favicon.png">
 
-<link rel="stylesheet" href="dashboard.css">
+  <!-- Responsive design for mobile and tablet -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Chart.js library for rendering charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <!-- Luxon for date/time handling in charts -->
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <!-- Adapter to integrate Luxon with Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
 </head>
 
 <body>
 
 <header>
+  <!-- Dashboard title displayed at the top -->
   <h1>P2Pool Dashboard</h1>
 </header>
 
 <main class="grid">
+  <!-- Main grid container holding dashboard cards -->
 
-<!-- HASHRATE -->
-<div class="card">
-  <h2>Your Hashrate</h2>
+  <!-- ==========================
+       HASHRATE CARD
+       Displays user's mining hashrate and pool share
+       Includes a real-time chart
+       ========================== -->
+  <div class="card">
+    <h2>Your Hashrate</h2>
 
-  <div class="big" id="myHashrate">Loading…</div>
-  <div class="sub">
-    Pool share: <span id="poolShare">–</span>
+    <!-- Large display of user's current hashrate -->
+    <div class="big" id="myHashrate">Loading…</div>
+
+    <!-- Subtext showing user's contribution to the pool -->
+    <div class="sub">
+      Pool share: <span id="poolShare">–</span>
+    </div>
+
+    <!-- Chart showing hashrate trends over time -->
+    <canvas id="hashrateChart"></canvas>
   </div>
 
-  <canvas id="hashrateChart"></canvas>
-</div>
+  <!-- ==========================
+       EARNINGS CARD
+       Displays estimated mining earnings
+       Allows selection of period (hour/day/week/etc.)
+       Includes tooltips, payout info, and network stats
+       ========================== -->
+  <div class="card">
+    <h2>Estimated Earnings</h2>
 
-<!-- EARNINGS -->
-<div class="card">
-  <h2>Estimated Earnings</h2>
-
-  <div class="big" id="earnXMR">Loading…
+    <!-- Large display of estimated XMR earnings -->
+    <div class="big" id="earnXMR">
+      Loading…
+      <!-- Tooltip icon for additional info -->
       <span class="tooltip-icon" id="earnTooltip">ⓘ</span>
+    </div>
+
+    <!-- Equivalent earnings in EUR -->
+    <div class="sub" id="earnEUR">Loading…</div>
+
+    <!-- Earnings chart legend or summary info -->
+    <div class="small-stat" id="earnLegend">–</div>
+
+    <!-- Timestamp of last data refresh -->
+    <div class="small-stat" id="lastRefreshed">–</div>
+
+    <!-- Dropdown to select the earnings period -->
+    <select id="earnPeriod">
+      <option value="hour">per hour</option>
+      <option value="day" selected>per day</option>
+      <option value="week">per week</option>
+      <option value="month">per month</option>
+      <option value="year">per year</option>
+    </select>
+
+    <!-- Additional statistics displayed at the bottom -->
+    <div class="bottom-stats">
+      <!-- Payout interval info with tooltip -->
+      <div class="stat">
+        <span>Payout Interval:</span>
+        <span id="payoutInterval">Loading…</span>
+        <span class="tooltip-icon">ⓘ</span>
+      </div>
+
+      <!-- Current network hashrate -->
+      <div class="small-stat">
+        Network hashrate: <span id="netHashrate">–</span>
+      </div>
+
+      <!-- Current pool hashrate -->
+      <div class="small-stat">
+        Pool hashrate: <span id="poolHashrate">–</span>
+      </div>
+
+      <!-- Current block reward in XMR -->
+      <div class="small-stat">
+        Block reward: <span id="blockReward">–</span> XMR
+      </div>
+    </div>
   </div>
-  <div class="sub" id="earnEUR">Loading…</div>
 
-  <!-- Earnings legend and last refreshed -->
-  <div class="small-stat" id="earnLegend">–</div>
-  <div class="small-stat" id="lastRefreshed">–</div>
+  <!-- ==========================
+       XMR PRICE CARD
+       Displays current XMR price
+       Includes a price chart
+       ========================== -->
+  <div class="card">
+    <h2>XMR Price</h2>
 
-  <select id="earnPeriod">
-    <option value="hour">per hour</option>
-    <option value="day" selected>per day</option>
-    <option value="week">per week</option>
-    <option value="month">per month</option>
-    <option value="year">per year</option>
-  </select>
+    <!-- Large display of current XMR price -->
+    <div class="big" id="price">Loading…</div>
 
-  <div class="bottom-stats">
-    <div class="stat">
-      <span>Payout Interval:</span>
-      <span id="payoutInterval">Loading…</span>
-      <span class="tooltip-icon">ⓘ</span>
-    </div>
-    <div class="small-stat">
-      Network hashrate: <span id="netHashrate">–</span>
-    </div>
-    <div class="small-stat">
-      Pool hashrate: <span id="poolHashrate">–</span>
-    </div>
-    <div class="small-stat">
-      Block reward: <span id="blockReward">–</span> XMR
-    </div>
+    <!-- Chart showing price trends over time -->
+    <canvas id="priceChart"></canvas>
   </div>
-</div>
-
-<!-- PRICE -->
-<div class="card">
-  <h2>XMR Price</h2>
-
-  <div class="big" id="price">Loading…</div>
-
-  <canvas id="priceChart"></canvas>
-</div>
 
 </main>
 
+<!-- Footer with credit -->
 <footer>Made by XanderTheDev</footer>
 
+<!-- Main JavaScript handling data fetching and charts -->
 <script src="dashboard.js"></script>
 </body>
 </html>
