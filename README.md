@@ -24,7 +24,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 ## Requirements
 
 - Python 3.8+
-- `monerod` (full node)
+- `monerod` (full node or pruned node)
 - XMRig miner
 - P2Pool node
 
