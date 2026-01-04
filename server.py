@@ -1,5 +1,12 @@
-
 #!/usr/bin/env python3
+"""
+P2Pool Data Logger & HTTP Server
+
+This script fetches real-time mining stats from xmrig, pool, and monerod,
+logs them in a rolling in-memory buffer (last 24h), serves them via HTTP endpoints,
+and fetches XMR prices from multiple sources with fallback.
+"""
+
 import http.server
 import socketserver
 import json
@@ -11,22 +18,27 @@ import threading
 import sys
 from collections import deque
 
-# -------------------- CLI --------------------
+# ==============================
+# COMMAND LINE ARGUMENTS
+# ==============================
 parser = argparse.ArgumentParser()
-parser.add_argument("--port", type=int, default=8080)
-parser.add_argument("--data-dir", type=str, default="./p2pool-data")
+parser.add_argument("--port", type=int, default=8080, help="HTTP server port")
+parser.add_argument("--data-dir", type=str, default="./p2pool-data", help="Directory to store logs")
 args = parser.parse_args()
 
 PORT = args.port
 DATA_DIR = args.data_dir
-LOG_FILE = os.path.join(DATA_DIR, "stats_log.json")
-STATS_MOD_FILE = os.path.join(DATA_DIR, "stats_mod")
-MAX_LOG_AGE = 24 * 3600  # keep 24h of data
+LOG_FILE = os.path.join(DATA_DIR, "stats_log.json")   # persistent JSON log file
+STATS_MOD_FILE = os.path.join(DATA_DIR, "stats_mod")  # configuration for min payment
+MAX_LOG_AGE = 24 * 3600  # seconds, keep last 24h of data
 
+# Ensure data directory exists
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# -------------------- In-memory rolling logs --------------------
-# Deques for efficient appends/pops from left
+# ==============================
+# IN-MEMORY ROLLING LOGS
+# ==============================
+# Using deque for efficient append/pop from left (for rolling window)
 log = {
     "timestamps": deque(),
     "myHash": deque(),
@@ -34,10 +46,16 @@ log = {
     "netHash": deque(),
     "price": deque()
 }
-log_lock = threading.Lock()  # thread-safe access
 
-# -------------------- Helper functions --------------------
+# Thread-safe access to log
+log_lock = threading.Lock()
+
+# ==============================
+# HELPER FUNCTIONS
+# ==============================
+
 def get_last_price():
+    """Return the last recorded XMR price from disk log"""
     try:
         with open(LOG_FILE, "r") as f:
             data = json.load(f)
@@ -48,18 +66,25 @@ def get_last_price():
     return 0.0
 
 def get_xmr_price():
-    """Fetch XMR price from multiple sources with fallback."""
+    """
+    Fetch XMR price in EUR from multiple APIs with fallback.
+    Sources: CoinGecko, Kraken, Bitfinex+FX conversion, price2sheet
+    """
     sources = [
-        ("https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=eur", lambda d: float(d["monero"]["eur"]), "CoinGecko"),
-        ("https://api.kraken.com/0/public/Ticker?pair=XMREUR", lambda d: float(d["result"]["XXMRZEUR"]["c"][0]), "Kraken"),
+        ("https://api.coingecko.com/api/v3/simple/price?ids=monero&vs_currencies=eur",
+         lambda d: float(d["monero"]["eur"]), "CoinGecko"),
+        ("https://api.kraken.com/0/public/Ticker?pair=XMREUR",
+         lambda d: float(d["result"]["XXMRZEUR"]["c"][0]), "Kraken"),
         ("https://api-pub.bitfinex.com/v2/ticker/tXMRUSD", None, "Bitfinex+FX"),
-        ("https://api.price2sheet.com/json/xmr/eur", lambda d: float(d["price"]), "price2sheet")
+        ("https://api.price2sheet.com/json/xmr/eur",
+         lambda d: float(d["price"]), "price2sheet")
     ]
     for url, parser_func, name in sources:
         try:
             with urllib.request.urlopen(url, timeout=5) as r:
                 data = json.load(r)
             if name == "Bitfinex+FX":
+                # Convert USD -> EUR using Frankfurter API
                 usd_to_eur = 1.0
                 try:
                     with urllib.request.urlopen("https://api.frankfurter.app/latest?from=USD&to=EUR", timeout=5) as r2:
@@ -75,21 +100,34 @@ def get_xmr_price():
                 return price
         except Exception:
             continue
+    # Fallback to last recorded price
     last_price = get_last_price()
     print("Price has come from last recorded value")
     return last_price
 
 def get_min_payment_threshold():
-    """Read min payment threshold from stats_mod"""
+    """Read min payment threshold from stats_mod file; fallback to 0.01 XMR"""
     try:
         with open(STATS_MOD_FILE) as f:
             data = json.load(f)
         return data["config"]["minPaymentThreshold"] / 1e12
     except Exception:
-        return 0.01  # fallback
+        return 0.01
 
-# -------------------- HTTP Handler --------------------
+# ==============================
+# HTTP SERVER HANDLER
+# ==============================
+
 class Handler(http.server.SimpleHTTPRequestHandler):
+    """
+    Handles HTTP GET requests for:
+      - /monerod_stats      : proxies Monero daemon get_info
+      - /xmrig_summary      : proxies xmrig summary
+      - /stats_log.json     : serves rolling log JSON
+      - /min_payment_threshold : serves min payout threshold
+      - all other paths     : served as static files from DATA_DIR
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=DATA_DIR, **kwargs)
 
@@ -106,6 +144,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def proxy(self, url):
+        """Fetch JSON from a local service and return to client"""
         with urllib.request.urlopen(url, timeout=5) as r:
             data = r.read()
         self.send_response(200)
@@ -114,6 +153,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(data)
 
     def proxy_monerod(self):
+        """Send a get_info RPC call to monerod and return JSON"""
         payload = json.dumps({
             "jsonrpc": "2.0",
             "id": "0",
@@ -131,23 +171,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(r.read())
 
     def serve_log(self):
-        """Serve current in-memory rolling log as JSON"""
+        """Serve in-memory rolling log as JSON"""
         with log_lock:
-            data = {k: list(v) for k,v in log.items()}
+            data = {k: list(v) for k, v in log.items()}
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
 
     def serve_threshold(self):
+        """Serve min payment threshold as JSON"""
         threshold = get_min_payment_threshold()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"minPaymentThreshold": threshold}).encode())
 
-# -------------------- Logging --------------------
+# ==============================
+# LOGGING FUNCTIONS
+# ==============================
+
 def append_log(myHash, poolHash, netHash, price):
+    """
+    Append a new data point to the in-memory rolling log
+    Removes entries older than MAX_LOG_AGE (24h)
+    """
     ts = int(time.time())
     cutoff = ts - MAX_LOG_AGE
     with log_lock:
@@ -157,25 +205,34 @@ def append_log(myHash, poolHash, netHash, price):
         log["netHash"].append(netHash)
         log["price"].append(price)
 
-        # Remove old entries beyond 24h
+        # Remove old entries
         while log["timestamps"] and log["timestamps"][0] < cutoff:
             for k in log:
                 log[k].popleft()
 
 def save_log_disk():
-    """Atomic write to disk"""
+    """Write rolling log to disk atomically"""
     tmp_file = LOG_FILE + ".tmp"
     with log_lock:
-        data = {k: list(v) for k,v in log.items()}
+        data = {k: list(v) for k, v in log.items()}
     with open(tmp_file, "w") as f:
         json.dump(data, f)
     os.replace(tmp_file, LOG_FILE)
 
-# -------------------- Logger loop --------------------
+# ==============================
+# LOGGER LOOP THREAD
+# ==============================
+
 def log_loop():
+    """
+    Continuously fetch stats from xmrig, pool, monerod, and XMR price.
+    Appends to rolling log and saves to disk every 10 seconds.
+    Runs in a separate daemon thread.
+    """
     last_save = 0
     while not shutdown_event.is_set():
         try:
+            # Fetch instantaneous hashrates
             xmrig = json.loads(
                 urllib.request.urlopen("http://127.0.0.1:42000/2/summary", timeout=5).read()
             )
@@ -186,6 +243,7 @@ def log_loop():
             )
             poolHash = pool["pool_statistics"]["hashRate"]
 
+            # Fetch network difficulty from monerod
             req = urllib.request.Request(
                 "http://127.0.0.1:18081/json_rpc",
                 data=json.dumps({"jsonrpc": "2.0", "id": "0", "method": "get_info"}).encode(),
@@ -194,10 +252,13 @@ def log_loop():
             net = json.loads(urllib.request.urlopen(req, timeout=5).read())
             netHash = net["result"]["difficulty"] / 120
 
+            # Fetch XMR price
             price = get_xmr_price()
+
+            # Append to in-memory log
             append_log(myHash, poolHash, netHash, price)
 
-            # Save to disk every 10s
+            # Periodically save to disk (every 10s)
             if time.time() - last_save > 10:
                 save_log_disk()
                 last_save = time.time()
@@ -206,15 +267,21 @@ def log_loop():
             if not shutdown_event.is_set():
                 print("Log error:", e)
 
-        shutdown_event.wait(10)
+        shutdown_event.wait(10)  # sleep or wait until shutdown
 
-# -------------------- Shutdown --------------------
+# ==============================
+# SHUTDOWN EVENT
+# ==============================
 shutdown_event = threading.Event()
 
-# -------------------- Start logger thread --------------------
+# ==============================
+# START LOGGER THREAD
+# ==============================
 threading.Thread(target=log_loop, daemon=True).start()
 
-# -------------------- Start HTTP server --------------------
+# ==============================
+# START HTTP SERVER
+# ==============================
 socketserver.ThreadingTCPServer.allow_reuse_address = True
 print(f"Serving HTTP on 0.0.0.0:{PORT}")
 
@@ -224,7 +291,7 @@ try:
 except KeyboardInterrupt:
     print("\nCTRL+C received, shutting down cleanly...")
 finally:
-    shutdown_event.set()
-    save_log_disk()
+    shutdown_event.set()   # signal logger thread to stop
+    save_log_disk()        # persist current log to disk
     print("Server stopped cleanly.")
     sys.exit(0)
