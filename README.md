@@ -50,12 +50,14 @@ When running p2pool, you need to add the ```--data-dir``` flag so there is a pla
 
 For example:
 ```bash
-p2pool --data-dir /home/user/p2pool-data   # user is your username 
+p2pool --data-dir /home/user/p2pool-data   # user is your username
+# or if you want it directly in the repository and you have it in your home directory
+p2pool --data-dir /home/user/p2pool-dashboard/p2pool-data
 ```
 
-Then link it to the dashboard p2pool-data directory:
+####Then link it to the dashboard p2pool-data directory:
 
-#### If your P2Pool data is somewhere else, create a symlink
+If your P2Pool data is somewhere else than in the repository, create a symlink
 ```bash
 cd p2pool-dashboard     # if not already
 ln -s /home/user/p2pool-data ./p2pool-data  # Or a different data directory if you setup a different one.
