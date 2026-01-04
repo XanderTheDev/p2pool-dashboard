@@ -17,19 +17,41 @@ async function fetchJSON(url){
     return r.json();
 }
 
-function sliceHistory(hours){
-    const cutoff = Date.now()/1000 - hours*3600;
-    const idx = history.timestamps.findIndex(t => t>=cutoff);
-    const i = idx===-1?0:idx;
+function sliceHistory(hours, hist) {
+    const now = Date.now()/1000;
+    const cutoff = now - hours*3600;
+    const idx = hist.timestamps.findIndex(t => t>=cutoff);
+    const i = idx === -1 ? 0 : idx;
     return {
-        labels: history.timestamps.slice(i).map(t=>t*1000),
-        myHash: history.myHash.slice(i),
-        price: history.price.slice(i)
+        labels: hist.timestamps.slice(i).map(t => t*1000),
+        myHash: hist.myHash.slice(i),
+        poolHash: hist.poolHash.slice(i),
+        netHash: hist.netHash.slice(i),
+        price: hist.price.slice(i)
     };
 }
 
+// Moving average over a given time window in seconds (e.g., 600 = 10min)
+function movingAverage(timestamps, values, windowSeconds = 600) {
+    if(!timestamps || !values || timestamps.length === 0) return 0;
+    let smoothed = [];
+    for(let i = 0; i < values.length; i++){
+        const start = timestamps[i] - windowSeconds;
+        let sum = 0, count = 0;
+        for(let j = 0; j <= i; j++){
+            if(timestamps[j] >= start){
+                sum += values[j];
+                count++;
+            }
+        }
+        smoothed.push(count ? sum / count : values[i]);
+    }
+    return smoothed.at(-1);
+}
+
 function updateCharts(){
-    const d = sliceHistory(currentRangeHours);
+    if(!history) return;
+    const d = sliceHistory(currentRangeHours, history);
 
     // HASHRATE CHART
     if(!hashrateChart){
@@ -75,45 +97,112 @@ function updateCharts(){
 
 async function updateStats(){
     try{
-        const [xmrig, pool, network] = await Promise.all([
+        const [xmrig, pool, network, thresholdObj, hist] = await Promise.all([
             fetchJSON("/xmrig_summary"),
             fetchJSON("/pool/stats"),
-            fetchJSON("/network/stats")
+            fetchJSON("/network/stats"),
+            fetchJSON("/min_payment_threshold"),
+            fetchJSON("/stats_log.json")
         ]);
 
-        const myHash = xmrig.hashrate.total[0];
-        const poolHash = pool.pool_statistics.hashRate;
-        const netHash = network.difficulty/120;
-        const blockReward = network.reward/1e12;
+        history = hist;
+        updateCharts();
 
-        document.getElementById("myHashrate").textContent = scaleHashrate(myHash);
-        document.getElementById("poolHashrate").textContent = scaleHashrate(poolHash);
-        document.getElementById("netHashrate").textContent = scaleHashrate(netHash);
+        // Instantaneous readings
+        const instMyHash = xmrig.hashrate.total[0];
+        const instPoolHash = pool.pool_statistics.hashRate;
+        const instNetHash = network.difficulty/120;
+        const blockReward = network.reward/1e12;
+        const minPaymentThreshold = thresholdObj.minPaymentThreshold;
+
+        // Determine available window (max 24h)
+        const now = Date.now()/1000;
+        let avgWindowHours = 24;
+        if(history && history.timestamps.length > 0){
+            const earliest = history.timestamps[0];
+            const availableHours = (now - earliest) / 3600;
+            if(availableHours < 24) avgWindowHours = availableHours;
+            if(avgWindowHours <= 0) avgWindowHours = 0;
+        }
+
+        // Compute moving averages
+        let avgMyHash = instMyHash;
+        let avgPoolHash = instPoolHash;
+        let avgNetHash = instNetHash;
+        if(avgWindowHours > 0){
+            const sliced = sliceHistory(avgWindowHours, history);
+            avgMyHash = movingAverage(sliced.labels.map(t => t/1000), sliced.myHash, 600);
+            avgPoolHash = movingAverage(sliced.labels.map(t => t/1000), sliced.poolHash, 600);
+            avgNetHash = movingAverage(sliced.labels.map(t => t/1000), sliced.netHash, 600);
+        }
+
+        // Update visible instantaneous values
+        document.getElementById("myHashrate").textContent = scaleHashrate(instMyHash);
+        document.getElementById("poolHashrate").textContent = scaleHashrate(instPoolHash);
+        document.getElementById("netHashrate").textContent = scaleHashrate(instNetHash);
         document.getElementById("blockReward").textContent = blockReward.toFixed(6);
 
-        const poolShare = (myHash/poolHash)*100;
+        const poolShare = (instMyHash/instPoolHash)*100;
         document.getElementById("poolShare").textContent = poolShare.toFixed(4)+"%";
 
         const price = history.price.at(-1) || 0;
         document.getElementById("price").textContent = "€"+price.toFixed(2);
 
-        // Earnings
+        // Earnings (smoothed 24h)
         const blocksPerDay = 720;
-        const myNetShare = myHash/netHash;
-        const xmrPerDay = myNetShare*blocksPerDay*blockReward;
+        const myNetShareAvg = avgMyHash / avgNetHash;
+        const xmrPerDayAvg = myNetShareAvg * blocksPerDay * blockReward;
         const period = document.getElementById("earnPeriod").value;
-        const xmr = xmrPerDay*PERIOD_MULT[period];
-        document.getElementById("earnXMR").textContent = xmr.toFixed(6)+" XMR";
-        document.getElementById("earnEUR").textContent = "≈ €"+(xmr*price).toFixed(2);
+        const xmr = xmrPerDayAvg * PERIOD_MULT[period];
+        const eur = xmr * price;
 
-        // Payout interval
-        const moneroBlockTime = 120;
-        const fracPool = myHash/poolHash;
-        const etaSeconds = moneroBlockTime/(fracPool||1);
-        const h=Math.floor(etaSeconds/3600);
-        const m=Math.floor((etaSeconds%3600)/60);
-        const s=Math.floor(etaSeconds%60);
-        document.getElementById("payoutInterval").textContent = `${h}h ${m}m ${s}s`;
+        // Update #earnXMR text without removing tooltip
+        const earnXMRDiv = document.getElementById("earnXMR");
+        earnXMRDiv.textContent = xmr.toFixed(6) + " XMR";
+
+        // Update #earnEUR
+        document.getElementById("earnEUR").textContent = `≈ €${eur.toFixed(2)}`;
+
+        // Inject tooltip icon if missing
+        let earnTooltip = document.getElementById("earnTooltip");
+        if(!earnTooltip){
+            earnTooltip = document.createElement("span");
+            earnTooltip.id = "earnTooltip";
+            earnTooltip.className = "tooltip-icon";
+            earnTooltip.textContent = "ⓘ";
+            earnXMRDiv.appendChild(earnTooltip);
+        }
+
+        // Tooltip content
+        const avgWindowLabel = avgWindowHours >= 24 ? "24h moving average" : `${avgWindowHours.toFixed(1)}h moving average`;
+        earnTooltip.title = `Estimated earnings based on ${avgWindowLabel}.
+Avg your hashrate: ${scaleHashrate(avgMyHash)}
+Avg pool hashrate: ${scaleHashrate(avgPoolHash)}
+Avg network hashrate: ${scaleHashrate(avgNetHash)}`;
+
+        // Legend
+        const legendText = avgWindowHours >= 24 ? "Based on 24h moving average" : `Based on ${avgWindowHours.toFixed(1)}h moving average`;
+        document.getElementById("earnLegend").textContent = legendText;
+
+        // Last refreshed timestamp
+        const date = new Date();
+        document.getElementById("lastRefreshed").textContent = `Last refreshed: ${date.toLocaleString()}`;
+
+        // Payout interval calculation
+        let xmrPerBlock = myNetShareAvg * blockReward;
+        let blocksNeeded = xmrPerBlock > 0 ? (minPaymentThreshold / xmrPerBlock) : Infinity;
+        let avgDaysPerPayout = blocksNeeded / blocksPerDay;
+        let expectedPayoutsPerDay = isFinite(avgDaysPerPayout) && avgDaysPerPayout > 0 ? (1 / avgDaysPerPayout) : 0;
+
+        const intervalHours = isFinite(avgDaysPerPayout) ? (avgDaysPerPayout*24).toFixed(1) : "N/A";
+        const intervalText = `${expectedPayoutsPerDay.toFixed(2)} payouts/day (~${intervalHours}h/payout)`;
+        document.getElementById("payoutInterval").textContent = intervalText;
+
+        const tooltipIcon = document.querySelector(".bottom-stats .tooltip-icon");
+        if(tooltipIcon){
+            tooltipIcon.title = `Average payout interval: ~${intervalHours} hours
+Your actual payouts can be shorter or longer, depending on mining luck.`;
+        }
 
     } catch(e){
         console.error("Error fetching stats:", e);
@@ -124,8 +213,12 @@ async function updateStats(){
 document.getElementById("earnPeriod").onchange = updateStats;
 
 (async()=>{
-    history = await fetchJSON("/stats_log.json");
+    try {
+        history = await fetchJSON("/stats_log.json");
+    } catch(e){
+        history = null;
+    }
     updateCharts();
     updateStats();
-    setInterval(updateStats,5000);
+    setInterval(updateStats, 5000);
 })();
