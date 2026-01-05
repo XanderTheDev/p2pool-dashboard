@@ -23,11 +23,34 @@ from collections import deque
 # ==============================
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", type=int, default=8080, help="HTTP server port")
+
 parser.add_argument("--data-dir", type=str, default="./p2pool-data", help="Directory to store logs")
+
+parser.add_argument("--wallet", type=str, help="Monero wallet address for p2pool observer")
+
+parser.add_argument("--normal-p2pool", action="store_true", help="Enable p2pool.observer")
+parser.add_argument("--mini-p2pool", action="store_true", help="Enable mini.p2pool.observer")
+parser.add_argument("--nano-p2pool", action="store_true", help="Enable nano.p2pool.observer")
 args = parser.parse_args()
 
 PORT = args.port
 DATA_DIR = args.data_dir
+
+# ==============================
+# P2POOL OBSERVER CONFIG
+# ==============================
+
+OBSERVER_DOMAINS = []
+
+if args.normal_p2pool:
+    OBSERVER_DOMAINS.append("https://p2pool.observer/api")
+if args.mini_p2pool:
+    OBSERVER_DOMAINS.append("https://mini.p2pool.observer/api")
+if args.nano_p2pool:
+    OBSERVER_DOMAINS.append("https://nano.p2pool.observer/api")
+
+WALLET_ADDRESS = args.wallet or ""
+
 LOG_FILE = os.path.join(DATA_DIR, "stats_log.json")   # persistent JSON log file
 STATS_MOD_FILE = os.path.join(DATA_DIR, "stats_mod")  # configuration for min payment
 MAX_LOG_AGE = 24 * 3600  # seconds, keep last 24h of data
@@ -140,6 +163,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.serve_log()
         elif self.path == "/min_payment_threshold":
             self.serve_threshold()
+        elif self.path == "/observer_config":
+            self.serve_observer_config()
         else:
             super().do_GET()
 
@@ -186,6 +211,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"minPaymentThreshold": threshold}).encode())
+
+    def serve_observer_config(self):
+        data = {
+            "wallet": WALLET_ADDRESS,
+            "observers": OBSERVER_DOMAINS
+        }
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
 
 # ==============================
 # LOGGING FUNCTIONS
