@@ -90,10 +90,14 @@ xmrig --api-worker-id=worker1 --http-port=42000
 
 ### 5. Run the dashboard server
 ```bash
-python3 server.py --port 8080 --data-dir ./p2pool-data
+python3 server.py --port 8080 --data-dir ./p2pool-data --wallet YOUR_WALLET_ADDRESS --nano-p2pool/--mini-p2pool/--normal-p2pool
 ```
 - ```--port``` is the HTTP port for the dashboard (default: 8080)
 - ```--data-dir``` points to the P2Pool data directory linked earlier. So the one that is in the p2pool-dashboard repository with all the website files
+- ```--wallet``` is your wallet address you are using for p2pool
+- ```--nano-p2pool``` you should use this option if you are using p2pool nano
+- ```--mini-p2pool``` you should use this option if you are using p2pool mini
+- ```--normal-p2pool``` you should use this option if you are using the normal/default p2pool
 
 #### Open your browser:
 Open your browser and visit [Your Dashboard](http://127.0.0.1:8080/dashboard.html) to see your stats in real-time.
