@@ -17,6 +17,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 - Tracks your **mining hashrate**, **pool hashrate**, and **network hashrate**.
 - Estimates your **earnings in XMR and EUR** with selectable time periods (hour/day/week/etc.).
+- Shows your **recent payments in XMR and EUR** and shows your **total earned XMR/EUR on p2pool**
 - Shows **XMR price trends** over time.
 - Rolling **24-hour log** saved to disk automatically.
 - Lightweight Python server serving live charts and stats.
