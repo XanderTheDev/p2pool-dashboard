@@ -54,10 +54,12 @@ h1 {
    Dashboard cards layout using CSS Grid
    ============================== */
 main.grid {
-    display: grid;  
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* responsive columns */
-    gap: 1rem;                        /* spacing between cards */
-    padding: 1rem;                     /* spacing around the grid */
+    display: grid;
+    grid-template-columns: repeat(4, minmax(280px, 1fr)); /* max 4 columns */
+    gap: 1rem;
+    padding: 1rem;
+    margin: auto;
+    justify-content: center;
 }
 
 /* ==============================
@@ -92,6 +94,12 @@ main.grid {
 .sub, .small-stat, .stat {
     font-size: 0.9rem;
     margin: 0.25rem 0;
+}
+
+/* SubSubText™ inside cards */
+.sub-sub {
+    font-size: 0.6rem;
+    margin: 0.125rem 0;
 }
 
 /* Chart canvas styling */
