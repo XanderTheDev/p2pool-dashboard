@@ -5,9 +5,17 @@ let history;             // Holds historical mining and price data
 let hashrateChart;       // Chart.js instance for the user's hashrate chart
 let priceChart;          // Chart.js instance for the XMR price chart
 let currentRangeHours = 24; // Default time range for charts (24 hours)
+let observerConfig = null;
+let observerBase = null;
+let observerWallet = null;
 
 // Conversion multipliers for earnings periods
 const PERIOD_MULT = { hour: 1/24, day: 1, week: 7, month: 30, year: 365 };
+
+// ==============================
+// P2POOL OBSERVER CONFIG
+// ==============================
+const MAX_RECENT_PAYMENTS = 5;
 
 // ==============================
 // HELPER FUNCTIONS
@@ -36,6 +44,15 @@ function formatDate24(date) {
     return `${d}/${m}/${y} ${h}:${min}:${s}`;
 }
 
+// Find out relative time compared to timestamp
+function formatRelativeTime(ts){
+    const diff = Math.floor(Date.now()/1000 - ts);
+    if(diff < 60) return `${diff}s ago`;
+    if(diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if(diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+}
+
 /**
  * Fetch JSON data from a URL, throwing an error if request fails
  * @param {string} url - endpoint to fetch
@@ -45,6 +62,22 @@ async function fetchJSON(url){
     const r = await fetch(url);
     if(!r.ok) throw new Error(url);
     return r.json();
+}
+
+async function loadObserverConfig(){
+    try {
+        const cfg = await fetchJSON("/observer_config");
+        if(!cfg.wallet || !cfg.observers || cfg.observers.length === 0){
+            return null;
+        }
+        observerConfig = cfg;
+        observerWallet = cfg.wallet;
+        observerBase = cfg.observers[0]; // default to first enabled observer
+        return cfg;
+    } catch(e){
+        console.warn("Observer config unavailable");
+        return null;
+    }
 }
 
 /**
@@ -96,6 +129,85 @@ function movingAverage(timestamps, values, windowSeconds = 600) {
 // ==============================
 // CHART INITIALIZATION & UPDATES
 // ==============================
+async function updateRecentPayments(){
+    if(!observerBase || !observerWallet){
+        document.getElementById("paymentsStatus").textContent = "Observer not configured";
+        document.getElementById("totalEarned").textContent = "–";
+        return;
+    }
+    const statusEl = document.getElementById("paymentsStatus");
+    const totalEl = document.getElementById("totalEarned");
+    const tbody = document.querySelector("#paymentsTable tbody");
+
+    try {
+        const payouts = await fetchJSON(
+                `${observerBase}/payouts/${observerWallet}`
+        );
+
+        if(!Array.isArray(payouts) || payouts.length === 0){
+            statusEl.textContent = "No payouts yet";
+            totalEl.textContent = "0.000000 XMR";
+            tbody.innerHTML = "";
+            return;
+        }
+
+        // Sort newest first
+        payouts.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Lifetime total
+        let totalXMR = 0;
+        for(const p of payouts){
+            totalXMR += p.coinbase_reward / 1e12;
+        }
+
+        const priceEUR = history.price.at(-1) || 0;
+
+        if(typeof priceEUR === "number"){
+                totalEl.textContent =
+                        `${totalXMR.toFixed(6)} XMR (€${(totalXMR * priceEUR).toFixed(2)})`;
+        } else {
+                totalEl.textContent = `${totalXMR.toFixed(6)} XMR`;
+        }
+
+        // Recent payouts table
+        tbody.innerHTML = "";
+        for(const p of payouts.slice(0, MAX_RECENT_PAYMENTS)){
+            const tr = document.createElement("tr");
+
+            const timeTd = document.createElement("td");
+            timeTd.textContent = formatRelativeTime(p.timestamp);
+
+            const xmr = p.coinbase_reward / 1e12;
+
+            const amtTd = document.createElement("td");
+            amtTd.style.textAlign = "right";
+            amtTd.textContent = xmr.toFixed(6);
+
+            const eurTd = document.createElement("td");
+            eurTd.style.textAlign = "right";
+
+            if(typeof priceEUR === "number"){
+                eurTd.textContent = (xmr * priceEUR).toFixed(2);
+            } else {
+                eurTd.textContent = "–";
+            }
+
+            tr.appendChild(timeTd);
+            tr.appendChild(amtTd);
+            tr.appendChild(eurTd);
+            tbody.appendChild(tr);
+        }
+
+        statusEl.textContent = `Showing last ${Math.min(MAX_RECENT_PAYMENTS, payouts.length)} payouts`;
+
+    } catch(e){
+        console.error("Observer payouts error:", e);
+        statusEl.textContent = "Payout data unavailable";
+        totalEl.textContent = "–";
+        tbody.innerHTML = "";
+    }
+}
+
 function updateCharts(){
     if(!history) return;
     const d = sliceHistory(currentRangeHours, history);
@@ -214,8 +326,8 @@ async function updateStats(){
         document.getElementById("poolShare").textContent = poolShare.toFixed(4) + "%";
 
         // Latest XMR price
-        const price = history.price.at(-1) || 0;
-        document.getElementById("price").textContent = "€" + price.toFixed(2);
+        const priceEUR = history.price.at(-1) || 0;
+        document.getElementById("price").textContent = "€" + priceEUR.toFixed(2);
 
         // --- ESTIMATED EARNINGS ---
         const blocksPerDay = 720;
@@ -223,7 +335,7 @@ async function updateStats(){
         const xmrPerDayAvg = myNetShareAvg * blocksPerDay * blockReward;
         const period = document.getElementById("earnPeriod").value;
         const xmr = xmrPerDayAvg * PERIOD_MULT[period];
-        const eur = xmr * price;
+        const eur = xmr * priceEUR;
 
         // Update #earnXMR while preserving tooltip
         const earnXMRDiv = document.getElementById("earnXMR");
@@ -279,6 +391,9 @@ Avg network hashrate: ${scaleHashrate(avgNetHash)}`;
             tooltipIcon.title = `Average payout interval: ~${intervalHours} hours
 Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
+        
+        // Update dashboard to show recent payments
+        updateRecentPayments();
 
     } catch(e){
         console.error("Error fetching stats:", e);
@@ -298,6 +413,8 @@ document.getElementById("earnPeriod").onchange = updateStats;
     } catch(e){
         history = null;
     }
+
+    await loadObserverConfig();
 
     updateCharts();
     updateStats();
