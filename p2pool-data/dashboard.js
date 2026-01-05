@@ -256,12 +256,20 @@ Avg network hashrate: ${scaleHashrate(avgNetHash)}`;
         const date = new Date();
         document.getElementById("lastRefreshed").textContent = `Last refreshed: ${formatDate24(date)}`;
 
-        // --- PAYOUT INTERVAL CALCULATION ---
-        let xmrPerBlock = myNetShareAvg * blockReward;
-        let blocksNeeded = xmrPerBlock > 0 ? (minPaymentThreshold / xmrPerBlock) : Infinity;
-        let avgDaysPerPayout = blocksNeeded / blocksPerDay;
-        let expectedPayoutsPerDay = isFinite(avgDaysPerPayout) && avgDaysPerPayout > 0 ? (1 / avgDaysPerPayout) : 0;
+        // --- PAYOUT INTERVAL CALCULATION (adjusted for pool size) ---
+        const poolBlocksPerDay = blocksPerDay * (avgPoolHash / avgNetHash); // expected pool blocks per day
+        const xmrPerBlock = (avgMyHash / avgPoolHash) * blockReward; // your expected XMR per pool block
 
+        // Expected total XMR per day
+        const expectedXMRPerDay = poolBlocksPerDay * xmrPerBlock;
+
+        // Average days per payout to reach minPaymentThreshold
+        const avgDaysPerPayout = expectedXMRPerDay > 0 ? minPaymentThreshold / expectedXMRPerDay : Infinity;
+
+        // Expected payouts per day
+        const expectedPayoutsPerDay = isFinite(avgDaysPerPayout) && avgDaysPerPayout > 0 ? (1 / avgDaysPerPayout) : 0;
+
+        // Interval in hours
         const intervalHours = isFinite(avgDaysPerPayout) ? (avgDaysPerPayout * 24).toFixed(1) : "N/A";
         const intervalText = `${expectedPayoutsPerDay.toFixed(2)} payouts/day (~${intervalHours}h/payout)`;
         document.getElementById("payoutInterval").textContent = intervalText;
