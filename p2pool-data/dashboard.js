@@ -208,6 +208,47 @@ async function updateRecentPayments(){
     }
 }
 
+async function updateSharesCard() {
+    try {
+        if (!observerWallet || !observerBase) return; // fallback
+
+        // Fetch payouts & shares
+        const [payouts, shares] = await Promise.all([
+            fetchJSON(`${observerBase}/payouts/${observerWallet}`),
+            fetchJSON(`${observerBase}/shares?miner=${observerWallet}`)
+        ]);
+
+        // Determine last payout timestamp
+        const lastPayoutTS = payouts?.length ? payouts[0].timestamp : 0;
+
+        // Filter shares after last payout
+        const sharesAfter = shares.filter(s => s.timestamp > lastPayoutTS);
+
+        // Counts
+        const sharesSince = sharesAfter.length;
+        const unclesSince = sharesAfter.filter(s => s.inclusion === 0).length;
+
+        const totalShares = shares.length;
+        const totalUncles = shares.filter(s => s.inclusion === 0).length;
+
+        // Update DOM
+        document.getElementById("sharesSinceLastPayout").textContent = sharesSince;
+        document.getElementById("unclesSinceLastPayout").textContent = unclesSince;
+
+        document.getElementById("totalSharesMined").textContent = `Total shares: ${totalShares}`;
+        document.getElementById("totalUnclesMined").textContent = `Total uncles: ${totalUncles}`;
+
+    } catch (e) {
+        console.error("Error updating Shares & Uncles card:", e);
+        // fallback display
+        document.getElementById("sharesSinceLastPayout").textContent = "–";
+        document.getElementById("unclesSinceLastPayout").textContent = "–";
+        document.getElementById("totalSharesMined").textContent = "–";
+        document.getElementById("totalUnclesMined").textContent = "–";
+    }
+}
+
+
 function updateCharts(){
     if(!history) return;
     const d = sliceHistory(currentRangeHours, history);
@@ -394,6 +435,9 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
         
         // Update dashboard to show recent payments
         updateRecentPayments();
+
+        // Update dashboard to show recent shares
+        updateSharesCard();
 
     } catch(e){
         console.error("Error fetching stats:", e);
