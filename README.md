@@ -55,7 +55,7 @@ p2pool --data-dir /home/user/p2pool-data   # user is your username
 p2pool --data-dir /home/user/p2pool-dashboard/p2pool-data
 ```
 
-####Then link it to the dashboard p2pool-data directory:
+#### Then link it to the dashboard p2pool-data directory:
 
 If your P2Pool data is somewhere else than in the repository, create a symlink
 ```bash
