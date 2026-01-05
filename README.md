@@ -7,7 +7,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="1920" height="619" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/25867339-f9e5-430a-887b-861bdf78f7e3" />
+<img width="1914" height="857" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/7fed4bfa-2f1e-450e-84c9-f711d4468292" />
 
 
 
@@ -19,6 +19,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 - Estimates your **earnings in XMR and EUR** with selectable time periods (hour/day/week/etc.).
 - Shows your **recent payments in XMR and EUR** and shows your **total earned XMR/EUR on p2pool**
 - Shows **XMR price trends** over time.
+- Shows how many **shares and uncles** you have gotten
 - Rolling **24-hour log** saved to disk automatically.
 - Lightweight Python server serving live charts and stats.
 
