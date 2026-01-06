@@ -137,6 +137,7 @@ async function updateRecentPayments(){
     }
     const statusEl = document.getElementById("paymentsStatus");
     const totalEl = document.getElementById("totalEarned");
+    const totalEurEl = document.getElementById("totalEurEarned");
     const tbody = document.querySelector("#paymentsTable tbody");
 
     try {
@@ -164,7 +165,8 @@ async function updateRecentPayments(){
 
         if(typeof priceEUR === "number"){
                 totalEl.textContent =
-                        `${totalXMR.toFixed(6)} XMR (€${(totalXMR * priceEUR).toFixed(2)})`;
+                        `${totalXMR.toFixed(6)} XMR`;
+                totalEurEl.textContent = `≈ €${(totalXMR * priceEUR).toFixed(2)}`;
         } else {
                 totalEl.textContent = `${totalXMR.toFixed(6)} XMR`;
         }
@@ -210,7 +212,7 @@ async function updateRecentPayments(){
 
 async function updateSharesCard() {
     try {
-        if (!observerWallet || !observerBase) return; // fallback
+        if (!observerWallet || !observerBase) return null; // fallback
 
         // Fetch payouts & shares
         const [payouts, shares] = await Promise.all([
@@ -245,9 +247,9 @@ async function updateSharesCard() {
         document.getElementById("unclesSinceLastPayout").textContent = "–";
         document.getElementById("totalSharesMined").textContent = "–";
         document.getElementById("totalUnclesMined").textContent = "–";
+        return null;
     }
 }
-
 
 function updateCharts(){
     if(!history) return;
@@ -316,6 +318,7 @@ function updateCharts(){
 // ==============================
 async function updateStats(){
     try {
+
         // Fetch all required data in parallel
         const [xmrig, pool, network, thresholdObj, hist] = await Promise.all([
             fetchJSON("/xmrig_summary"),
@@ -413,28 +416,21 @@ Avg network hashrate: ${scaleHashrate(avgNetHash)}`;
         const poolBlocksPerDay = blocksPerDay * (avgPoolHash / avgNetHash); // expected pool blocks per day
         const xmrPerBlock = (avgMyHash / avgPoolHash) * blockReward; // your expected XMR per pool block
 
-        // Expected total XMR per day
-        const expectedXMRPerDay = poolBlocksPerDay * xmrPerBlock;
+        // Interval in hours 
+        const intervalHours = xmrPerBlock > 0 ? minPaymentThreshold / xmrPerBlock * 24 : "N/A";
 
-        // Average days per payout to reach minPaymentThreshold
-        const avgDaysPerPayout = expectedXMRPerDay > 0 ? minPaymentThreshold / expectedXMRPerDay : Infinity;
-
-        // Expected payouts per day
-        const expectedPayoutsPerDay = isFinite(avgDaysPerPayout) && avgDaysPerPayout > 0 ? (1 / avgDaysPerPayout) : 0;
-
-        // Interval in hours
-        const intervalHours = isFinite(avgDaysPerPayout) ? (avgDaysPerPayout * 24).toFixed(1) : "N/A";
-        const intervalText = `${expectedPayoutsPerDay.toFixed(2)} payouts/day (~${intervalHours}h/payout)`;
+        const intervalText = `~${intervalHours.toFixed(1)}h/payout`;
         document.getElementById("payoutInterval").textContent = intervalText;
 
         const tooltipIcon = document.querySelector(".bottom-stats .tooltip-icon");
         if(tooltipIcon){
-            tooltipIcon.title = `Average payout interval: ~${intervalHours} hours
+            tooltipIcon.title = `Average payout interval: ~${intervalHours.toFixed(1)} hours
 Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
         
         // Update dashboard to show recent payments
         updateRecentPayments();
+
 
         // Update dashboard to show recent shares
         updateSharesCard();
