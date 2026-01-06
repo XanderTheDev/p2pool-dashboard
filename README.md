@@ -7,7 +7,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="1920" height="1026" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/f83bfc11-3a03-4baf-a107-fbf3a9038fa4" />
+<img width="1920" height="992" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/32d02017-bfc6-4969-b4b0-80f67f8926f4" />
 
 
 
@@ -17,6 +17,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 - Tracks your **mining hashrate**, **pool hashrate**, and **network hashrate**.
 - Estimates your **earnings in XMR and EUR** with selectable time periods (hour/day/week/etc.).
+- Shows pretty (as good as it is going to get) **accurate payout interval**
 - Shows your **recent payments in XMR and EUR** and shows your **total earned XMR/EUR on p2pool**
 - Shows **XMR price trends** over time.
 - Shows how many **shares and uncles** you have gotten
