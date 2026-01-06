@@ -29,100 +29,40 @@
 </header>
 
 <main class="grid">
-  <!-- Main grid container holding dashboard cards -->
 
   <!-- ==========================
-       HASHRATE CARD
-       Displays user's mining hashrate and pool share
-       Includes a real-time chart
+       HASHRATE CARD (Top row)
        ========================== -->
-  <div class="card">
+  <div class="card" id="hashrateCard">
     <h2>Your Hashrate</h2>
-
-    <!-- Large display of user's current hashrate -->
     <div class="big" id="myHashrate">Loading…</div>
-
-    <!-- Subtext showing user's contribution to the pool -->
     <div class="sub">
       Pool share: <span id="poolShare">–</span>
     </div>
-
-    <!-- Chart showing hashrate trends over time -->
     <canvas id="hashrateChart"></canvas>
   </div>
 
+
   <!-- ==========================
-       EARNINGS CARD
-       Displays estimated mining earnings
-       Allows selection of period (hour/day/week/etc.)
-       Includes tooltips, payout info, and network stats
+       XMR PRICE CARD (Top row)
        ========================== -->
-  <div class="card">
-    <h2>Estimated Earnings</h2>
-
-    <!-- Large display of estimated XMR earnings -->
-    <div class="big" id="earnXMR">
-      Loading…
-      <!-- Tooltip icon for additional info -->
-      <span class="tooltip-icon" id="earnTooltip">ⓘ</span>
-    </div>
-
-    <!-- Equivalent earnings in EUR -->
-    <div class="sub" id="earnEUR">Loading…</div>
-
-    <!-- Earnings chart legend or summary info -->
-    <div class="small-stat" id="earnLegend">–</div>
-
-    <!-- Timestamp of last data refresh -->
-    <div class="small-stat" id="lastRefreshed">–</div>
-
-    <!-- Dropdown to select the earnings period -->
-    <select id="earnPeriod">
-      <option value="hour">per hour</option>
-      <option value="day" selected>per day</option>
-      <option value="week">per week</option>
-      <option value="month">per month</option>
-      <option value="year">per year</option>
-    </select>
-
-    <!-- Additional statistics displayed at the bottom -->
-    <div class="bottom-stats">
-      <!-- Payout interval info with tooltip -->
-      <div class="stat">
-        <span>Payout Interval:</span>
-        <span id="payoutInterval">Loading…</span>
-        <span class="tooltip-icon">ⓘ</span>
-      </div>
-
-      <!-- Current network hashrate -->
-      <div class="small-stat">
-        Network hashrate: <span id="netHashrate">–</span>
-      </div>
-
-      <!-- Current pool hashrate -->
-      <div class="small-stat">
-        Pool hashrate: <span id="poolHashrate">–</span>
-      </div>
-
-      <!-- Current block reward in XMR -->
-      <div class="small-stat">
-        Block reward: <span id="blockReward">–</span> XMR
-      </div>
-    </div>
+  <div class="card" id="priceCard">
+    <h2>XMR Price</h2>
+    <div class="big" id="price">Loading…</div>
+    <canvas id="priceChart"></canvas>
   </div>
 
   <!-- ==========================
-     RECENT PAYMENTS CARD
-     Displays actual p2pool payouts
-     ========================== -->
-  <div class="card">
+       RECENT PAYMENTS CARD (Bottom row)
+       ========================== -->
+  <div class="card" id="paymentsCard">
+    <div class="total-block">
     <h2>Recent Payments</h2>
-
-    <div class="big" id="totalEarned">Loading…</div>
-    <div class="sub">Total earned</div>
-
+        <div class="sub">Total earned</div>
+        <div class="big" id="totalEarned">Loading…</div>
+        <div class="sub" id="totalEurEarned">Loading…</div>
+    </div>
     <div id="paymentsStatus" class="small-stat">Loading…</div>
-
     <table id="paymentsTable" style="width:100%; margin-top:0.5rem; border-collapse: collapse;">
       <thead>
         <tr style="color:#aaa; font-size:0.8rem;">
@@ -136,40 +76,60 @@
   </div>
 
   <!-- ==========================
-       XMR PRICE CARD
-       Displays current XMR price
-       Includes a price chart
+       EARNINGS CARD (Bottom row)
        ========================== -->
-  <div class="card">
-    <h2>XMR Price</h2>
-
-    <!-- Large display of current XMR price -->
-    <div class="big" id="price">Loading…</div>
-
-    <!-- Chart showing price trends over time -->
-    <canvas id="priceChart"></canvas>
+  <div class="card" id="earningsCard">
+    <h2>Estimated Earnings</h2>
+    <div class="big" id="earnXMR">
+      Loading…
+      <span class="tooltip-icon" id="earnTooltip">ⓘ</span>
+    </div>
+    <div class="sub" id="earnEUR">Loading…</div>
+    <div class="small-stat" id="earnLegend">–</div>
+    <div class="small-stat" id="lastRefreshed">–</div>
+    <select id="earnPeriod">
+      <option value="hour">per hour</option>
+      <option value="day" selected>per day</option>
+      <option value="week">per week</option>
+      <option value="month">per month</option>
+      <option value="year">per year</option>
+    </select>
+    <div class="bottom-stats">
+      <div class="stat">
+        <span>Payout Interval:</span>
+        <span id="payoutInterval">Loading…</span>
+        <span class="tooltip-icon">ⓘ</span>
+      </div>
+      <div class="small-stat">
+        Network hashrate: <span id="netHashrate">–</span>
+      </div>
+      <div class="small-stat">
+        Pool hashrate: <span id="poolHashrate">–</span>
+      </div>
+      <div class="small-stat">
+        Block reward: <span id="blockReward">–</span> XMR
+      </div>
+    </div>
   </div>
 
   <!-- ==========================
-       RECENT SHARES CARD
-       Displays recent p2pool shares
+       SHARES & UNCLES CARD (Bottom row)
        ========================== -->
   <div class="card" id="sharesCard">
-        <h2>Shares & Uncles</h2>
-
-        <div class="big">
-                Shares: <span id="sharesSinceLastPayout">–</span>
-        </div>
-        <div class="sub-sub">Shares since the last payout</div>
-        <div class="big">
-                Uncles: <span id="unclesSinceLastPayout">–</span>
-        </div>
-        <div class="sub-sub">Uncles since the last payout</div>
-        <br></br>
-        <div class=bottom-stats>
-                <div class="small-stat" id="totalSharesMined">–</div>
-                <div class="small-stat" id="totalUnclesMined">–</div>
-        </div>
+    <h2>Shares & Uncles</h2>
+    <div class="big">
+      Shares: <span id="sharesSinceLastPayout">–</span>
+    </div>
+    <div class="sub-sub">Shares since the last payout</div>
+    <div class="big">
+      Uncles: <span id="unclesSinceLastPayout">–</span>
+    </div>
+    <div class="sub-sub">Uncles since the last payout</div>
+    <br>
+    <div class="bottom-stats">
+      <div class="small-stat" id="totalSharesMined">–</div>
+      <div class="small-stat" id="totalUnclesMined">–</div>
+    </div>
   </div>
 
 </main>
