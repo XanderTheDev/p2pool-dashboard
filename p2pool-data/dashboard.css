@@ -7,6 +7,7 @@ body {
     font-family: Arial, sans-serif;   /* set default font */
     background: #121212;              /* dark background */
     color: #e0e0e0;                   /* light text for contrast */
+    overflow-x: hidden; /* prevent horizontal scroll */
 }
 
 header {
@@ -55,26 +56,18 @@ h1 {
    ============================== */
 main.grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(280px, 1fr)); /* max 4 columns */
+    grid-template-columns: repeat(4, 1fr); /* 4 equal columns */
     gap: 1rem;
     padding: 1rem;
-    margin: auto;
-    justify-content: center;
+    max-width: 70%;  /* scale the entire dashboard */
+    margin: 0 auto;     /* center horizontally */
+    box-sizing: border-box;
 }
 
 /* ==============================
    CARD STYLING
    Generic styling for all dashboard cards
    ============================== */
-.card {
-    background: #1e1e1e;              /* card background slightly lighter than page */
-    padding: 1rem;                     /* inner spacing */
-    border-radius: 12px;               /* rounded corners */
-    box-shadow: 0 0 10px rgba(0,0,0,0.5); /* subtle shadow for depth */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;    /* space out content vertically */
-}
 
 /* Card header styling */
 .card h2 {
@@ -90,6 +83,12 @@ main.grid {
     margin: 0.5rem 0;
 }
 
+.big-med {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0.4rem 0;
+}
+
 /* Subtext inside cards */
 .sub, .small-stat, .stat {
     font-size: 0.9rem;
@@ -100,6 +99,34 @@ main.grid {
 .sub-sub {
     font-size: 0.6rem;
     margin: 0.125rem 0;
+    color: #aaa;                        /* muted text for secondary info */
+}
+
+/* Top row */
+#hashrateCard {
+    grid-column: 1 / 3; /* spans 2 columns */
+    grid-row: 1;
+}
+
+#priceCard {
+    grid-column: 3 / 5; /* spans 2 columns */
+    grid-row: 1;
+}
+
+/* Bottom row */
+#paymentsCard {
+    grid-column: 1 / 3; /* spans 2 columns */
+    grid-row: 2;
+}
+
+#earningsCard {
+    grid-column: 3 / 4; /* 1 column */
+    grid-row: 2;
+}
+
+#sharesCard {
+    grid-column: 4 / 5; /* 1 column */
+    grid-row: 2;
 }
 
 /* Chart canvas styling */
@@ -146,7 +173,17 @@ footer {
    Overrides for estimated earnings display
    ============================== */
 .card {
-    justify-content: flex-start;       /* align top content together */
+    background: #1e1e1e;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    /* Fix for borders with multi-column span */
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 #earnXMR {
@@ -159,7 +196,20 @@ footer {
     font-size: 1rem;
     color: #aaa;                        /* muted text for secondary info */
     display: block;
-    margin-bottom: 0.3rem;              /* closer spacing to main XMR value */
+    margin-top: 0.05rem;              /* closer spacing to main XMR value */
+    margin-bottom: 0.7rem;
+}
+
+#totalEurEarned {
+    font-size: 1rem;
+    color: #aaa;
+    margin: 0;           /* remove extra spacing */
+}
+
+#paymentsCard .total-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;  /* controls vertical spacing */
 }
 
 /* Bottom stats pinned at bottom of card */
