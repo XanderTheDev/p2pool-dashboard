@@ -57,7 +57,7 @@
        ========================== -->
   <div class="card" id="paymentsCard">
     <div class="total-block">
-    <h2>Recent Payments</h2>
+        <h2>Recent Payments</h2>
         <div class="sub">Total earned</div>
         <div class="big" id="totalEarned">Loading…</div>
         <div class="sub" id="totalEurEarned">–</div>
@@ -74,6 +74,24 @@
       <tbody></tbody>
     </table>
   </div>
+
+  <!-- ==========================
+       WINDOW LUCK CARD (Bottom row)
+       ========================== -->
+  <div class="card" id="luckCard">
+    <h2>PPLNS Window Luck</h2>
+    <div class="big"><span id="luckFactor">–</span>⨯<span class="tooltip-icon" id="luckTooltip">ⓘ</span></div>
+    <br>
+    <div class="big-med">Accumulated XMR:</div>
+    <div class="sub"><span id="xmrThisWindow">0.000000</span> XMR</div>
+    <div class="sub" id="eurThisWindow">–</div>
+    <div class="sub-sub" id="luckInfo">Only true if pool mines expected amount of blocks based on net share this window; Only true if above minimum payout (0.00027XMR)</div>
+    <div class="bottom-stats">
+            <div class="small-stat">Start of PPLNS window: <span id="pplnsStart">Loading...</span></div>
+            <div class="small-stat">PPLNS Window Hashrate: <span id="dayHash">–</span></div>
+    </div>
+  </div>
+
 
   <!-- ==========================
        EARNINGS CARD (Bottom row)
