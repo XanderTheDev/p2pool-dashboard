@@ -44,6 +44,13 @@ function formatDate24(date) {
     return `${d}/${m}/${y} ${h}:${min}:${s}`;
 }
 
+function formatDate24Hours(date) {
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${h}:${min}:${s}`;
+}
+
 // Find out relative time compared to timestamp
 function formatRelativeTime(ts){
     const diff = Math.floor(Date.now()/1000 - ts);
@@ -124,6 +131,34 @@ function movingAverage(timestamps, values, windowSeconds = 600) {
         smoothed.push(count ? sum / count : values[i]);
     }
     return smoothed.at(-1); // return the latest smoothed value
+}
+
+async function getWindowStartTimestamp() {
+    // Step 1: Fetch the newest share to get the current PPLNS window depth
+    const newestShare = await fetchJSON(`${observerBase}/shares?limit=1`);
+
+    if (!newestShare || newestShare.length === 0) {
+        console.warn("No shares returned from API");
+        return Date.now() / 1000;
+    }
+
+    const windowDepth = newestShare[0].window_depth; // number of shares in the current PPLNS window
+
+    // Step 2: Fetch exactly that many recent shares
+    const sharesInWindow = await fetchJSON(
+        `${observerBase}/shares?limit=${windowDepth}`
+    );
+
+    if (!sharesInWindow || sharesInWindow.length === 0) {
+        console.warn("No shares returned for PPLNS window");
+        return Date.now() / 1000;
+    }
+
+    // Step 3: Oldest share in this array is the start of the PPLNS window
+    const windowStartShare = sharesInWindow[sharesInWindow.length - 1];
+
+    // Step 4: Return its timestamp in seconds
+    return Math.floor(windowStartShare.timestamp);
 }
 
 // ==============================
@@ -247,6 +282,65 @@ async function updateSharesCard() {
         document.getElementById("unclesSinceLastPayout").textContent = "–";
         document.getElementById("totalSharesMined").textContent = "–";
         document.getElementById("totalUnclesMined").textContent = "–";
+        return null;
+    }
+}
+
+async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR) {
+    try {
+        if (!observerWallet || !observerBase) return null;
+
+        // Step 1: Get all shares (most recent first)
+        const shares = (await fetchJSON(`${observerBase}/shares?miner=${observerWallet}`)).sort((a, b) => a.timestamp - b.timestamp); // oldest → newest
+
+        // Step 3: Filter your shares to only those in the current PPLNS window
+        const myWindowShares = shares.filter(share => share.timestamp >= windowStart);
+
+        // Step 4: Sum difficulty of your shares
+        const totalDifficulty = myWindowShares.reduce((sum, share) => sum + share.difficulty, 0);
+
+        // Step 5: Your share of total window
+        const difficultyShare = totalDifficulty / pplnsWeight;
+
+        // Step 6: Compute your window hashrate and luck factor
+        const myWindowHash = difficultyShare * avgPoolHashPPLNS;
+        const luckFactor = myWindowHash / avgMyHashPPLNS;
+        
+        // Get extra info
+        const accumulatedXMR = xmrPerDayAvg * (windowDuration / (24*60*60)) * luckFactor;
+        const accumulatedEUR = accumulatedXMR * priceEUR;
+        const pplnsStart = new Date(windowStart * 1000);
+
+        
+        // Ensure tooltip exists
+        const luckFactorDiv = document.getElementById("luckFactor"); 
+        let luckTooltip = document.getElementById("luckTooltip");
+        if(!luckTooltip){
+            luckTooltip = document.createElement("span");
+            luckTooltip.id = "luckTooltip";
+            luckTooltip.className = "tooltip-icon";
+            luckTooltip.textContent = "ⓘ";
+            luckFactorDiv.appendChild(earnTooltip);
+        }
+
+        // Luck factor tooltip
+        luckTooltip.title = `
+Luck factor is based on your performance in the
+current PPLNS window compared to your expected performance.
+Basically it is your hashrate calculated based on the summed
+difficulty of your hashes compared to the total difficuly in the
+current PPLNS window divided by your actual moving average 
+(as long as the PPLNS window age) hashrate from XMRig.
+`;
+
+        document.getElementById("luckFactor").textContent = luckFactor.toFixed(2);
+        document.getElementById("xmrThisWindow").textContent = accumulatedXMR.toFixed(12);
+        document.getElementById("eurThisWindow").textContent = `≈ €${accumulatedEUR.toFixed(2)}`;
+        document.getElementById("dayHash").textContent = scaleHashrate(myWindowHash);
+        document.getElementById("pplnsStart").textContent = formatDate24Hours(pplnsStart); 
+
+    } catch (e) {
+        console.error("Error updating PPLNS Window Luck card:", e);
         return null;
     }
 }
@@ -434,6 +528,38 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
 
         // Update dashboard to show recent shares
         updateSharesCard();
+
+        // Calculate moving average hashrates since start of PPLNS Window
+        const pplnsWeight = pool.pool_statistics.pplnsWeight;
+        const windowStart = await getWindowStartTimestamp();
+        const windowEnd = Date.now() / 1000; // current timestamp in seconds
+        const windowDuration = windowEnd - windowStart; // seconds
+        let avgWindowSeconds = windowDuration; // start with actual PPLNS window
+        if(history && history.timestamps.length > 0){
+                const earliest = history.timestamps[0] / 1000; // convert ms → s
+                const availableSeconds = windowEnd - earliest;
+                avgWindowSeconds = Math.min(avgWindowSeconds, availableSeconds);
+        }
+        let avgMyHashPPLNS = instMyHash;
+        let avgPoolHashPPLNS = instPoolHash;
+
+        if(avgWindowSeconds > 0 && history && history.timestamps.length > 0){
+                const sliced = sliceHistory(avgWindowSeconds / 3600, history); // sliceHistory expects hours
+                // compute 10-minute (600s) moving average
+                avgMyHashPPLNS = movingAverage(
+                        sliced.labels.map(t => t/1000), // timestamps in seconds
+                        sliced.myHash,
+                        600
+                );
+                avgPoolHashPPLNS = movingAverage(
+                        sliced.labels.map(t => t/1000),
+                        sliced.poolHash,
+                        600
+                );
+        }
+
+        // Update window Luck card
+        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR);
 
     } catch(e){
         console.error("Error fetching stats:", e);
