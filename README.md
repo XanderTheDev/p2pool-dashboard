@@ -7,7 +7,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="1920" height="992" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/32d02017-bfc6-4969-b4b0-80f67f8926f4" />
+<img width="2993" height="1270" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/10b168a7-e4a4-4408-b0bc-0892d8e374f7" />
 
 
 
@@ -20,6 +20,8 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 - Shows pretty (as good as it is going to get) **accurate payout interval**
 - Shows your **recent payments in XMR and EUR** and shows your **total earned XMR/EUR on p2pool**
 - Shows **XMR price trends** over time.
+- Shows current **luck** in the PPLNS window
+- Shows current **accumulated XMR** in the PPLNS window (expectations, not reality)
 - Shows how many **shares and uncles** you have gotten
 - Rolling **24-hour log** saved to disk automatically.
 - Lightweight Python server serving live charts and stats.
