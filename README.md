@@ -7,7 +7,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="2538" height="1297" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/5599d466-386b-4a20-b342-67fcb321edb8" />
+<img width="2501" height="1271" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/185fcb1e-489d-4a9d-b227-cd7566020b17" />
 
 
 
@@ -22,6 +22,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 - Shows **XMR price trends** over time.
 - Shows current **luck** in the PPLNS window
 - Shows current **accumulated XMR** in the PPLNS window (expectations, not reality)
+- Shows estimated **true luck** since you started mining with your current daily hashrate
 - Shows how many **shares and uncles** you have gotten
 - Rolling **24-hour log** saved to disk automatically.
 - Lightweight Python server serving live charts and stats.
