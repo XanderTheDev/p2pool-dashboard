@@ -7,7 +7,7 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 
 ## How it looks
 
-<img width="2501" height="1271" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/185fcb1e-489d-4a9d-b227-cd7566020b17" />
+<img width="2485" height="1286" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/7ce0cbb0-43ee-4df7-8563-dbd6e50b3b9d" />
 
 
 
