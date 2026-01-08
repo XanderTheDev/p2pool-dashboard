@@ -53,7 +53,7 @@
   </div>
 
   <!-- ==========================
-       RECENT PAYMENTS CARD (Bottom row)
+       RECENT PAYMENTS CARD (middle row)
        ========================== -->
   <div class="card" id="paymentsCard">
     <div class="total-block">
@@ -76,25 +76,7 @@
   </div>
 
   <!-- ==========================
-       WINDOW LUCK CARD (Bottom row)
-       ========================== -->
-  <div class="card" id="luckCard">
-    <h2>PPLNS Window Luck</h2>
-    <div class="big"><span id="luckFactor">–</span>⨯<span class="tooltip-icon" id="luckTooltip">ⓘ</span></div>
-    <br>
-    <div class="big-med">Accumulated XMR:</div>
-    <div class="sub"><span id="xmrThisWindow">0.000000</span> XMR</div>
-    <div class="sub" id="eurThisWindow">–</div>
-    <div class="sub-sub" id="luckInfo">Only true if pool mines expected amount of blocks based on net share this window; Only true if above minimum payout (0.00027XMR)</div>
-    <div class="bottom-stats">
-            <div class="small-stat">Start of PPLNS window: <span id="pplnsStart">Loading...</span></div>
-            <div class="small-stat">PPLNS Window Hashrate: <span id="dayHash">–</span></div>
-    </div>
-  </div>
-
-
-  <!-- ==========================
-       EARNINGS CARD (Bottom row)
+       EARNINGS CARD (middle row)
        ========================== -->
   <div class="card" id="earningsCard">
     <h2>Estimated Earnings</h2>
@@ -131,7 +113,7 @@
   </div>
 
   <!-- ==========================
-       SHARES & UNCLES CARD (Bottom row)
+       SHARES & UNCLES CARD (middle row)
        ========================== -->
   <div class="card" id="sharesCard">
     <h2>Shares & Uncles</h2>
@@ -149,6 +131,67 @@
       <div class="small-stat" id="totalUnclesMined">–</div>
     </div>
   </div>
+
+    <!-- ==========================
+     COMBINED LUCK CARD
+  ========================== -->
+  <div class="card" id="combinedLuckCard">
+      <h2>Luck Overview</h2>
+      <div class="luck-grid">
+
+          <!-- PPLNS Window Luck -->
+          <div class="luck-section" id="pplnsLuck">
+              <h3>PPLNS Window Luck</h3>
+              <div class="big"><span id="luckFactor">–</span>⨯
+                  <span class="tooltip-icon" id="luckTooltip">ⓘ</span>
+              </div>
+              <div class="big-med">Accumulated XMR:</div>
+              <div class="sub"><span id="xmrThisWindow">0.000000</span> XMR</div>
+              <div class="sub" id="eurThisWindow">–</div>
+              <div class="sub-sub" id="luckInfo">
+                  Only true if pool mines expected blocks based on net share this window; minimum payout 0.00027 XMR
+              </div>
+              <div class="bottom-stats">
+                  <div class="small-stat">Start of PPLNS window: <span id="pplnsStart">Loading...</span></div>
+                  <div class="small-stat">PPLNS Window Hashrate: <span id="dayHash">–</span></div>
+              </div>
+          </div>
+
+          <!-- Estimated True Luck -->
+          <div class="luck-section" id="trueLuck">
+              <h3>Estimated True Luck</h3>
+              <div class="big"><span id="trueLuckFactor">–</span>⨯
+                  <span class="tooltip-icon" id="trueLuckTooltip">ⓘ</span>
+              </div>
+              <div class="sub-sub" id="trueLuckInfo">
+                  Longer time windows reduce accuracy; uses a 24h moving average of hashrates.
+              </div>
+              <br>
+              <label for="startedMining">Mining since (with current 24h avg H/s)?</label>
+              <input type="datetime-local" id="startedMining" name="startedMining">
+              <script>
+              document.addEventListener('DOMContentLoaded', () => {
+                const input = document.getElementById('startedMining');
+
+                // Load saved value from localStorage
+                const savedDate = localStorage.getItem('startedMining');
+                if (savedDate) {
+                    input.value = savedDate;
+                }
+
+                // Save value whenever user changes it
+                input.addEventListener('input', () => {
+                    if (input.value) {
+                        localStorage.setItem('startedMining', input.value);
+                    }
+                });
+              });
+              </script>
+          </div>
+
+      </div>
+  </div>
+
 
 </main>
 
