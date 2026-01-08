@@ -116,7 +116,7 @@ You should see your hashrate, pool stats, XMR price, and estimated earnings upda
 - Data updates every 5 seconds.
 - Logs are stored in stats_log.json automatically.
 - Tooltip icons (ⓘ) give extra info like moving averages and payout intervals.
-- The dashboard uses a dark theme.
+- The dashboard uses a dark theme and is mobile-friendly.
 
 ---
 
