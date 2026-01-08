@@ -545,16 +545,16 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
 
         if(avgWindowSeconds > 0 && history && history.timestamps.length > 0){
                 const sliced = sliceHistory(avgWindowSeconds / 3600, history); // sliceHistory expects hours
-                // compute 10-minute (600s) moving average
+                // compute PPLNS window length (the most that is available in the history of it) moving average
                 avgMyHashPPLNS = movingAverage(
                         sliced.labels.map(t => t/1000), // timestamps in seconds
                         sliced.myHash,
-                        600
+                        avgWindowSeconds
                 );
                 avgPoolHashPPLNS = movingAverage(
                         sliced.labels.map(t => t/1000),
                         sliced.poolHash,
-                        600
+                        avgWindowSeconds
                 );
         }
 
