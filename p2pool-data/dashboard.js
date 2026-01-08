@@ -8,6 +8,7 @@ let currentRangeHours = 24; // Default time range for charts (24 hours)
 let observerConfig = null;
 let observerBase = null;
 let observerWallet = null;
+const dayInSeconds = 60*60*24;
 
 // Conversion multipliers for earnings periods
 const PERIOD_MULT = { hour: 1/24, day: 1, week: 7, month: 30, year: 365 };
@@ -190,6 +191,8 @@ async function updateRecentPayments(){
         // Sort newest first
         payouts.sort((a, b) => b.timestamp - a.timestamp);
 
+        const newestPayoutTime = payouts[0].timestamp;
+
         // Lifetime total
         let totalXMR = 0;
         for(const p of payouts){
@@ -236,12 +239,14 @@ async function updateRecentPayments(){
         }
 
         statusEl.textContent = `Showing last ${Math.min(MAX_RECENT_PAYMENTS, payouts.length)} payouts`;
-
+        
+        return [newestPayoutTime, totalXMR];
     } catch(e){
         console.error("Observer payouts error:", e);
         statusEl.textContent = "Payout data unavailable";
         totalEl.textContent = "–";
         tbody.innerHTML = "";
+        return null;
     }
 }
 
@@ -341,6 +346,49 @@ current PPLNS window divided by your actual moving average
 
     } catch (e) {
         console.error("Error updating PPLNS Window Luck card:", e);
+        return null;
+    }
+}
+
+async function updateTrueLuck(startedMiningTimestamp, newestPayoutTime, xmrPerDayAvg, totalXMR){
+    try {
+        const luckFactorDiv = document.getElementById("trueLuckFactor"); 
+        let luckTooltip = document.getElementById("trueLuckTooltip");
+        if(!luckTooltip){
+            luckTooltip = document.createElement("span");
+            luckTooltip.id = "trueLuckTooltip";
+            luckTooltip.className = "tooltip-icon";
+            luckTooltip.textContent = "ⓘ";
+            luckFactorDiv.appendChild(earnTooltip);
+        }
+
+        // Luck factor tooltip
+        luckTooltip.title = `
+The estimated true luck factor is based on how much you have 
+been paid out since you started mining divided by how much you
+were expected to earn in that time. But the longer the time window,
+the less accurate it is, because the way the expected amount is 
+calculated is using (max 24h) moving average hashrates. But if
+they have changed in a significant way from when you started 
+mining up until now, the true luck factor could be less accurate.
+That's also why it is called the estimated true luck factor.
+`;
+        // Calculate time window
+        const timeWindow = newestPayoutTime - startedMiningTimestamp;
+        if (timeWindow <= 0 || Number.isNaN(startedMiningTimestamp)){
+                await Promise.reject("Start of mining was after last payment or there has not been a payment yet");
+        }
+
+        // Calculate expected amount of XMR in the time window
+        const timeWindowDays = timeWindow / dayInSeconds;
+        const expectedXMR = xmrPerDayAvg * timeWindowDays;
+
+        // Calculate estimated true luck factor
+        const trueLuckFactor = totalXMR / expectedXMR;
+        document.getElementById("trueLuckFactor").textContent = trueLuckFactor.toFixed(2);
+
+    } catch (e) {
+        console.error("Error updating Estimated True Luck card:", e);
         return null;
     }
 }
@@ -448,9 +496,9 @@ async function updateStats(){
         let avgNetHash = instNetHash;
         if(avgWindowHours > 0){
             const sliced = sliceHistory(avgWindowHours, history);
-            avgMyHash = movingAverage(sliced.labels.map(t => t/1000), sliced.myHash, 600);
-            avgPoolHash = movingAverage(sliced.labels.map(t => t/1000), sliced.poolHash, 600);
-            avgNetHash = movingAverage(sliced.labels.map(t => t/1000), sliced.netHash, 600);
+            avgMyHash = movingAverage(sliced.labels.map(t => t/1000), sliced.myHash, (avgWindowHours * 3600));
+            avgPoolHash = movingAverage(sliced.labels.map(t => t/1000), sliced.poolHash, (avgWindowHours * 3600));
+            avgNetHash = movingAverage(sliced.labels.map(t => t/1000), sliced.netHash, (avgWindowHours * 3600));
         }
 
         // --- UPDATE DOM ELEMENTS ---
@@ -523,8 +571,7 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
         
         // Update dashboard to show recent payments
-        updateRecentPayments();
-
+        const [newestPayoutTime, totalXMR] = await updateRecentPayments();
 
         // Update dashboard to show recent shares
         updateSharesCard();
@@ -545,7 +592,7 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
 
         if(avgWindowSeconds > 0 && history && history.timestamps.length > 0){
                 const sliced = sliceHistory(avgWindowSeconds / 3600, history); // sliceHistory expects hours
-                // compute PPLNS window length (the most that is available in the history of it) moving average
+                // compute 10-minute (600s) moving average
                 avgMyHashPPLNS = movingAverage(
                         sliced.labels.map(t => t/1000), // timestamps in seconds
                         sliced.myHash,
@@ -560,6 +607,11 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
 
         // Update window Luck card
         updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR);
+
+        // Update True Luck Card
+        const startedMining = document.getElementById("startedMining").value;
+        const startedMiningTimestamp = Math.floor(new Date(startedMining).getTime() / 1000);
+        updateTrueLuck(startedMiningTimestamp, newestPayoutTime, xmrPerDayAvg, totalXMR);
 
     } catch(e){
         console.error("Error fetching stats:", e);
