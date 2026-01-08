@@ -61,8 +61,9 @@ main.grid {
     grid-template-columns: repeat(10, 1fr);
     gap: 1rem;
     padding: 1rem;
-    max-width: 70%;
-    margin: 0 auto;
+    width: 100%;          /* fills available space */
+    max-width: 150rem;    /* caps the grid width on large desktops */
+    margin: 0 auto;       /* centers the grid */
     box-sizing: border-box;
 }
 
@@ -161,13 +162,6 @@ main.grid {
 #combinedLuckCard input#startedMining {
     margin-top: 0.3rem;
     width: 85%;
-}
-
-/* Responsive: stack sections on mobile */
-@media (max-width: 600px) {
-    #combinedLuckCard .luck-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* Canvas Styling */
@@ -292,9 +286,58 @@ footer {
    MOBILE RESPONSIVENESS
    ========================================================= */
 @media (max-width: 600px) {
-    .card { padding: 0.75rem; }
+
+    /* Stack grid into single column */
+    main.grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        max-width: 100%;
+    }
+
+    /* Override grid positions to auto for stacking */
+    #hashrateCard,
+    #priceCard,
+    #paymentsCard,
+    #earningsCard,
+    #sharesCard,
+    #combinedLuckCard {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    /* Card adjustments */
+    .card {
+        padding: 0.75rem;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Text scaling */
+    h1 { font-size: 1.5rem; }
+    .card h2 { font-size: 1rem; }
     .big  { font-size: 1.25rem; }
+    .big-med { font-size: 1rem; }
     .sub,
     .small-stat,
     .stat { font-size: 0.85rem; }
+    #earnXMR { font-size: 1.5rem; }
+    #earnEUR { font-size: 0.9rem; }
+    #eurThisWindow { font-size: 0.7rem; }
+
+    /* Combined Luck Card sections stack vertically */
+    #combinedLuckCard .luck-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #combinedLuckCard .luck-section {
+        padding: 0.5rem;
+    }
+
+    /* Inputs & dropdowns full width */
+    input#startedMining,
+    select#earnPeriod {
+        width: 100%;
+        font-size: 0.9rem;
+    }
 }
