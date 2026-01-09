@@ -291,7 +291,7 @@ async function updateSharesCard() {
     }
 }
 
-async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR, newestPayoutTime) {
+async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR) {
     try {
         if (!observerWallet || !observerBase) return null;
 
@@ -313,13 +313,14 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         
         // Get current pool effort
         const poolInfo = await fetchJSON(`${observerBase}/pool_info`);
+        const lastBlockTimestamp = (await fetchJSON(`${observerBase}/found_blocks?limit=1`))[0].main_block.timestamp;
         const currentEffort = poolInfo.sidechain.effort.current;
         const avgCurrentEffort = poolInfo.sidechain.effort.average200;
         
         let betterLuckFactor;
-        if (newestPayoutTime < windowStart) {
+        if (lastBlockTimestamp < windowStart) {
                 betterLuckFactor = luckFactor * (1 / (currentEffort / 100));
-        } else if (newestPayoutTime >= windowStart) {
+        } else if (lastBlockTimestamp >= windowStart) {
                 betterLuckFactor = luckFactor * (1 / (avgCurrentEffort / 100));
         } else {
                 betterLuckFactor = luckFactor;
@@ -621,7 +622,7 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
 
         // Update window Luck card
-        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR, newestPayoutTime);
+        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR);
 
         // Update True Luck Card
         const startedMining = document.getElementById("startedMining").value;
