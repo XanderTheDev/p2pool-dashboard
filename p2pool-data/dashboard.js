@@ -311,8 +311,14 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         const myWindowHash = difficultyShare * avgPoolHashPPLNS;
         const luckFactor = myWindowHash / avgMyHashPPLNS;
         
+        // Get current pool effort
+        const poolInfo = await fetchJSON(`${observerBase}/pool_info`);
+        const currentEffort = poolInfo.sidechain.effort.current;
+       
+        const betterLuckFactor = luckFactor * (1 / (currentEffort / 100));
+        
         // Get extra info
-        const accumulatedXMR = xmrPerDayAvg * (windowDuration / (24*60*60)) * luckFactor;
+        const accumulatedXMR = xmrPerDayAvg * (windowDuration / (24*60*60)) * betterLuckFactor;
         const accumulatedEUR = accumulatedXMR * priceEUR;
         const pplnsStart = new Date(windowStart * 1000);
 
@@ -335,14 +341,16 @@ current PPLNS window compared to your expected performance.
 Basically it is your hashrate calculated based on the summed
 difficulty of your hashes compared to the total difficuly in the
 current PPLNS window divided by your actual moving average 
-(as long as the PPLNS window age) hashrate from XMRig.
+(as long as the PPLNS window age) hashrate from XMRig. And that
+also multiplied by the pool luck (derrived from the pool effort).
 `;
 
-        document.getElementById("luckFactor").textContent = luckFactor.toFixed(2);
+        document.getElementById("luckFactor").textContent = betterLuckFactor.toFixed(2);
         document.getElementById("xmrThisWindow").textContent = accumulatedXMR.toFixed(12);
         document.getElementById("eurThisWindow").textContent = `≈ €${accumulatedEUR.toFixed(2)}`;
         document.getElementById("dayHash").textContent = scaleHashrate(myWindowHash);
-        document.getElementById("pplnsStart").textContent = formatDate24Hours(pplnsStart); 
+        document.getElementById("pplnsStart").textContent = formatDate24Hours(pplnsStart);
+        document.getElementById("currentEffort").textContent = currentEffort.toFixed(2);
 
     } catch (e) {
         console.error("Error updating PPLNS Window Luck card:", e);
