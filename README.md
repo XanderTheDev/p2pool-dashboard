@@ -8,8 +8,6 @@ Mostly vibe-coded because I just wanted something that worked. No hand-holding h
 ## How it looks
 
 <img width="2486" height="1300" alt="Dashboard Screenshot" src="https://github.com/user-attachments/assets/3c775790-7b08-4836-9ecd-a15e92aa52f8" />
-<h2>test haha</h2>
-
 
 ---
 
