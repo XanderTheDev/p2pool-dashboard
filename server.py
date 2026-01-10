@@ -99,8 +99,6 @@ def get_xmr_price():
         ("https://api.kraken.com/0/public/Ticker?pair=XMREUR",
          lambda d: float(d["result"]["XXMRZEUR"]["c"][0]), "Kraken"),
         ("https://api-pub.bitfinex.com/v2/ticker/tXMRUSD", None, "Bitfinex+FX"),
-        ("https://api.price2sheet.com/json/xmr/eur",
-         lambda d: float(d["price"]), "price2sheet")
     ]
     for url, parser_func, name in sources:
         try:
