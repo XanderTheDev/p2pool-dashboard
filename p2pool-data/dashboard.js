@@ -317,14 +317,7 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         const currentEffort = poolInfo.sidechain.effort.current;
         const avgCurrentEffort = poolInfo.sidechain.effort.average200;
         
-        let betterLuckFactor;
-        if (lastBlockTimestamp < windowStart) {
-                betterLuckFactor = luckFactor * (1 / (currentEffort / 100));
-        } else if (lastBlockTimestamp >= windowStart) {
-                betterLuckFactor = luckFactor * (1 / (avgCurrentEffort / 100));
-        } else {
-                betterLuckFactor = luckFactor;
-        }
+        const betterLuckFactor = luckFactor * (1 /(avgCurrentEffort / 100));
         // Get extra info
         const accumulatedXMR = xmrPerDayAvg * (windowDuration / (24*60*60)) * betterLuckFactor;
         const accumulatedEUR = accumulatedXMR * priceEUR;
