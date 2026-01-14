@@ -333,7 +333,7 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
             luckTooltip.id = "luckTooltip";
             luckTooltip.className = "tooltip-icon";
             luckTooltip.textContent = "ⓘ";
-            luckFactorDiv.appendChild(earnTooltip);
+            luckFactorDiv.appendChild(luckTooltip);
         }
 
         // Luck factor tooltip
