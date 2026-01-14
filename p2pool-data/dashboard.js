@@ -291,7 +291,7 @@ async function updateSharesCard() {
     }
 }
 
-async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR) {
+async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, priceEUR, blockReward) {
     try {
         if (!observerWallet || !observerBase) return null;
 
@@ -317,9 +317,8 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         const currentEffort = poolInfo.sidechain.effort.current;
         const avgCurrentEffort = poolInfo.sidechain.effort.average200;
         
-        const betterLuckFactor = luckFactor * (1 /(avgCurrentEffort / 100));
         // Get extra info
-        const accumulatedXMR = xmrPerDayAvg * (windowDuration / (24*60*60)) * betterLuckFactor;
+        const accumulatedXMR = difficultyShare * blockReward;
         const accumulatedEUR = accumulatedXMR * priceEUR;
         const pplnsStart = new Date(windowStart * 1000);
 
@@ -346,7 +345,7 @@ current PPLNS window divided by your actual moving average
 also multiplied by the pool luck (derrived from the pool effort).
 `;
 
-        document.getElementById("luckFactor").textContent = betterLuckFactor.toFixed(2);
+        document.getElementById("luckFactor").textContent = luckFactor.toFixed(2);
         document.getElementById("xmrThisWindow").textContent = accumulatedXMR.toFixed(12);
         document.getElementById("eurThisWindow").textContent = `≈ €${accumulatedEUR.toFixed(2)}`;
         document.getElementById("dayHash").textContent = scaleHashrate(myWindowHash);
@@ -615,7 +614,7 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
 
         // Update window Luck card
-        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, xmrPerDayAvg, windowDuration, priceEUR);
+        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, priceEUR, blockReward);
 
         // Update True Luck Card
         const startedMining = document.getElementById("startedMining").value;
