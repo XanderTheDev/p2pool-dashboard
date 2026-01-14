@@ -291,7 +291,7 @@ async function updateSharesCard() {
     }
 }
 
-async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, priceEUR, blockReward) {
+async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, windowDuration, priceEUR, blockReward) {
     try {
         if (!observerWallet || !observerBase) return null;
 
@@ -307,8 +307,8 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         // Step 5: Your share of total window
         const difficultyShare = totalDifficulty / pplnsWeight;
 
-        // Step 6: Compute your window hashrate and luck factor
-        const myWindowHash = difficultyShare * avgPoolHashPPLNS;
+        // Step 5: Compute your window hashrate and luck factor
+        const myWindowHash = totalDifficulty / windowDuration;
         const luckFactor = myWindowHash / avgMyHashPPLNS;
         
         // Get current pool effort
@@ -369,7 +369,7 @@ async function updateTrueLuck(startedMiningTimestamp, newestPayoutTime, xmrPerDa
             luckTooltip.id = "trueLuckTooltip";
             luckTooltip.className = "tooltip-icon";
             luckTooltip.textContent = "ⓘ";
-            luckFactorDiv.appendChild(earnTooltip);
+            luckFactorDiv.appendChild(trueLuckTooltip);
         }
 
         // Luck factor tooltip
@@ -616,7 +616,7 @@ Your actual payouts can be shorter or longer, depending on mining luck.`;
         }
 
         // Update window Luck card
-        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, priceEUR, blockReward);
+        updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, windowStart, windowDuration, priceEUR, blockReward);
 
         // Update True Luck Card
         const startedMining = document.getElementById("startedMining").value;
