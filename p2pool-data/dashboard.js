@@ -316,7 +316,9 @@ async function updateWindowLuck(pplnsWeight, avgPoolHashPPLNS, avgMyHashPPLNS, w
         const lastBlockTimestamp = (await fetchJSON(`${observerBase}/found_blocks?limit=1`))[0].main_block.timestamp;
         const currentEffort = poolInfo.sidechain.effort.current;
         const avgCurrentEffort = poolInfo.sidechain.effort.average200;
-        
+       
+        const betterLuckFactor = luckFactor * (1 / (avgCurrentEffort / 100));
+
         // Get extra info
         const accumulatedXMR = difficultyShare * blockReward;
         const accumulatedEUR = accumulatedXMR * priceEUR;
@@ -345,7 +347,7 @@ current PPLNS window divided by your actual moving average
 also multiplied by the pool luck (derrived from the pool effort).
 `;
 
-        document.getElementById("luckFactor").textContent = luckFactor.toFixed(2);
+        document.getElementById("luckFactor").textContent = betterLuckFactor.toFixed(2);
         document.getElementById("xmrThisWindow").textContent = accumulatedXMR.toFixed(12);
         document.getElementById("eurThisWindow").textContent = `≈ €${accumulatedEUR.toFixed(2)}`;
         document.getElementById("dayHash").textContent = scaleHashrate(myWindowHash);
